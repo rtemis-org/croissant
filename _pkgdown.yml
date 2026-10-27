@@ -1,0 +1,61 @@
+url: https://docs.rtemis.org/r/croissant-api/
+destination: ../../Docs/docs-rtemis/docs/r/croissant-api/
+
+template:
+  bootstrap: 5
+  light-switch: true
+  theme: atom-one-light
+  theme-dark: atom-one-dark
+  bslib:
+    base_font: {google: "Geist"}
+    heading_font: {google: "Geist"}
+    code_font: {google: "Geist Mono"}
+
+navbar:
+  structure:
+    left: [home, intro, reference, articles, tutorials, news, docs]
+    right: [search, github, lightswitch]
+  components:
+    home: ~
+    docs:
+      text: Docs
+      icon: fa-book
+      href: https://docs.rtemis.org/r/croissant
+      target: _self
+
+reference:
+  - title: Read and write
+    contents:
+      - read_croissant
+      - write_croissant
+      - croissant_context
+  - title: Validate
+    contents:
+      - validate_croissant
+      - is_valid
+      - CroissantIssues
+  - title: Records
+    contents:
+      - read_record_set
+      - croissant_from_data
+  - title: Hugging Face
+    contents:
+      - read_croissant_hf
+      - hf_download
+  - title: Metadata classes
+    contents:
+      - Croissant
+      - FileObject
+      - FileSet
+      - RecordSet
+      - Field
+      - ParentField
+      - Source
+      - Extract
+      - Transform
+      - Person
+      - Organization
+      - CreativeWork
+  - title: Package
+    contents:
+      - croissant-package
