@@ -46,8 +46,12 @@ read_croissant <- function(x) {
     abort(
       "The document has ",
       length(errors),
-      ngettext(length(errors), " problem", " problems"),
-      " that prevent reading it:\n",
+      ngettext(
+        length(errors),
+        " problem that prevents",
+        " problems that prevent"
+      ),
+      " reading it:\n",
       paste0("  - ", errors, collapse = "\n"),
       "\nvalidate_croissant() reports these together with every other issue.",
       class = c("croissant_read_error", "rtemis_input_error"),

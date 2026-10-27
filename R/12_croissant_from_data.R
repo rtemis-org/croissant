@@ -30,9 +30,9 @@
 #' [write_croissant()] into the directory of `file`, where `content_url`
 #' resolves.
 #'
-#' A factor is written as its labels and reads back as character. In CSV,
-#' missing values and empty strings are both written as empty fields and read
-#' back as `NA`; Parquet keeps both, and every column type.
+#' A factor is written as its labels and reads back as character. In CSV, a
+#' missing value is written as an empty field and an empty string as `""`,
+#' and they read back as `NA` and `""`. Parquet keeps every column type.
 #'
 #' @param x data.frame, data.table, or tibble: The data.
 #' @param file Character: Path of the data file to write.

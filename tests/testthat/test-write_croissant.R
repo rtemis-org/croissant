@@ -85,6 +85,18 @@ test_that("objects built in R write and read back", {
   expect_identical(y@conforms_to, "http://mlcommons.org/croissant/1.1")
 })
 
+test_that("strings with an S3 class write as plain strings", {
+  hash <- structure("0123abcd", class = c("hash", "sha256"))
+  x <- Croissant(
+    name = "hashed",
+    distribution = list(
+      FileObject(id = "f.csv", content_url = "f.csv", sha256 = hash)
+    )
+  )
+  y <- read_croissant(write_croissant(x))
+  expect_identical(y@distribution[[1L]]@sha256, "0123abcd")
+})
+
 test_that("print shows name, version, distribution, and record sets", {
   x <- read_croissant(test_path("fixtures", "1.0", "titanic.json"))
   out <- paste(capture.output(print(x)), collapse = "\n")

@@ -72,6 +72,22 @@ test_that("a value of the wrong JSON type raises croissant_read_error", {
   )
 })
 
+test_that("the read error states the number of problems", {
+  json <- write_croissant(Croissant(name = "x"))
+  one <- sub('"name": "x"', '"name": 42', json, fixed = TRUE)
+  expect_error(
+    read_croissant(one),
+    "has 1 problem that prevents reading it",
+    class = "croissant_read_error"
+  )
+  two <- sub('"@type": "sc:Dataset"', '"@type": "sc:Thing"', one, fixed = TRUE)
+  expect_error(
+    read_croissant(two),
+    "has 2 problems that prevent reading it",
+    class = "croissant_read_error"
+  )
+})
+
 test_that("a 0.8 document raises croissant_version_error", {
   expect_error(
     read_croissant(test_path("fixtures", "0.8", "titanic.json")),

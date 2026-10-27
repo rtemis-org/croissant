@@ -101,6 +101,12 @@ node_to_list <- function(x, class_name, version) {
   }
   for (nm in names(spec[["terms"]])) {
     value <- prop(x, nm)
+    # A string may carry an S3 class, such as the `hash` class of
+    # `openssl::sha256()`, which `jsonlite::toJSON()` has no method for.
+    # `unclass()` keeps the language-tag names of text.
+    if (is.atomic(value) && !is.null(oldClass(value))) {
+      value <- unclass(value)
+    }
     if (!is.null(value)) {
       term <- spec[["terms"]][[nm]]
       out[[term[["key"]]]] <- write_value(value, term, version)

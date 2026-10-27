@@ -117,3 +117,9 @@ test_that("unsupported columns and ids are rejected", {
 test_that("column names that sanitize to the same @id stay unique", {
   expect_identical(field_ids(c("a b", "a_b"), "rs"), c("rs/a_b", "rs/a_b_1"))
 })
+
+test_that("CSV keeps empty strings apart from missing values", {
+  rt <- round_trip(data.frame(s = c("a", "", NA)), "csv")
+  y <- read_record_set(rt[["path"]], "default", output = "data.frame")
+  expect_identical(y[["default/s"]], c("a", "", NA))
+})

@@ -49,9 +49,9 @@ character and factor to \code{sc:Text}. Write the metadata with
 resolves.
 }
 \details{
-A factor is written as its labels and reads back as character. In CSV,
-missing values and empty strings are both written as empty fields and read
-back as \code{NA}; Parquet keeps both, and every column type.
+A factor is written as its labels and reads back as character. In CSV, a
+missing value is written as an empty field and an empty string as \code{""},
+and they read back as \code{NA} and \code{""}. Parquet keeps every column type.
 }
 \examples{
 dir <- tempfile()
