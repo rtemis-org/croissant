@@ -7,7 +7,7 @@
 ^\.DS_Store$
 ^.*\.code-workspace$
 ^.*\.Rcheck$
-^.*\.tar\.gz$
+^[^/]*\.tar\.gz$
 ^.*\.pdf$
 ^[.]?air[.]toml$
 ^_pkgdown\.yml$

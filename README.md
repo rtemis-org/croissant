@@ -1,8 +1,8 @@
 [![r-ci](https://github.com/rtemis-org/croissant/actions/workflows/r-ci.yml/badge.svg)](https://github.com/rtemis-org/croissant/actions/workflows/r-ci.yml) [![croissant status badge](https://rtemis-org.r-universe.dev/croissant/badges/version)](https://rtemis-org.r-universe.dev/croissant)
 
-# croissant: 'croissant' Package
+# croissant
 
-What the package does, in one paragraph ending with a period.
+Read and write [`croissant`](https://docs.mlcommons.org/croissant/docs/croissant-spec.html) metadata files.
 
 ## Installation
 

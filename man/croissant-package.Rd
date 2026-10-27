@@ -4,9 +4,11 @@
 \name{croissant-package}
 \alias{croissant}
 \alias{croissant-package}
-\title{\pkg{croissant}: 'croissant' Package}
+\title{\pkg{croissant}: Read and Write 'Croissant' Metadata}
 \description{
-What the package does, in one paragraph ending with a period.
+Read, write, and inspect Croissant JSON-LD metadata for machine learning
+datasets. \code{\link[=read_croissant]{read_croissant()}} reads a document into a \link{Croissant} object and
+\code{\link[=write_croissant]{write_croissant()}} writes it back.
 }
 \seealso{
 Useful links:

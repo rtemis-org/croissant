@@ -1,0 +1,343 @@
+{
+ "1.0/audio_test": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.0/bigcode-the-stack": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/coco2014": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/coco2014-mini": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.0/credit-g": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.0/dices-350": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.0/fashion-mnist": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/flores-200": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.0/gpt-3": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/huggingface-anthropic-hh-rlhf": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.0/huggingface-c4": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.0/huggingface-levanti": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished"
+  ]
+ },
+ "1.0/huggingface-lmms-eval-lite": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.0/huggingface-mnist": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.0/huggingface-open-hermes": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.0/huggingface-pollen-robotics-apple-storage": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/huggingface-prism-alignment": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.0/huggingface-rag-dataset": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/huggingface-squad": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.0/huggingface-tgqa": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.0/huggingface-the-cauldron": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.0/huggingface-web-of-science": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished"
+  ]
+ },
+ "1.0/json-join": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/movielens": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.0/pass": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/pass-mini": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/simple-join": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/simple-parquet": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/simple-split": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/titanic": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.0/wiki-text": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.0/world-happiness": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.1/audio_test": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.1/commoncrawl-CC-MAIN-2025-43-draft": {
+  "other_warnings": [],
+  "recommended": []
+ },
+ "1.1/huggingface-baratilab-flow3d": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.1/huggingface-data_provenance_initiative": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.1/huggingface-manud-dfl_video_classification": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.1/huggingface-mnist-from-main-branch": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.1/huggingface-pollen-robotics-apple-storage": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.1/huggingface-qazisaad-news_recommendations_base": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "license",
+   "version"
+  ]
+ },
+ "1.1/huggingface-recipe_RL_data_roberta-base": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.1/huggingface-squad_v2": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.1/huggingface-standard-chess-game-mini": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.1/huggingface-wildchat": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ },
+ "1.1/image_test": {
+  "other_warnings": [],
+  "recommended": [
+   "datePublished"
+  ]
+ },
+ "1.1/zenodo-head-mri": {
+  "other_warnings": [],
+  "recommended": [
+   "citeAs",
+   "datePublished",
+   "version"
+  ]
+ }
+}

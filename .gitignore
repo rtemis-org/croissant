@@ -1,16 +1,16 @@
 # Dev
 __dev/
 plan/
+.vscode/
+*.code-workspace
+.zed/
+.claude/
+AGENTS.md
+CLAUDE.md
+SKILL.md
 
 # macOS
 .DS_Store
-
-# VS Code
-.vscode/
-*.code-workspace
-
-# Zed
-.zed/
 
 # R
 .Rhistory
@@ -22,15 +22,5 @@ revdep/
 rhub/
 cran-comments.md
 .lintr
-
-# pkgdown
 docs/
-
-# Agents
-.claude/
-AGENTS.md
-CLAUDE.md
-SKILL.md
-
-# CRAN
 CRAN-SUBMISSION
