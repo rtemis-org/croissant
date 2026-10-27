@@ -14,12 +14,4 @@
 #' @import methods S7 rtemis.core
 "_PACKAGE"
 
-# data.table's `[` method applies to data.tables subset in this namespace,
-# which imports data.table functions by `::` only.
-.datatable.aware <- TRUE
-
-.onLoad <- function(libname, pkgname) {
-  S7::methods_register()
-}
-
 NULL
