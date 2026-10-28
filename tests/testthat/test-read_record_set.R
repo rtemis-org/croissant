@@ -70,7 +70,7 @@ expect_records <- function(tab, expected, label) {
 dataset_path <- function(...) test_path("fixtures", "datasets", ...)
 
 test_that("records match mlcroissant on its hermetic datasets and titanic", {
-  withr::local_options(croissant.cache_dir = withr::local_tempdir())
+  local_options(croissant.cache_dir = local_tempdir())
   cases <- list(
     c("1.0", "audio_test", "metadata.json", "records"),
     c("1.0", "pass-mini", "metadata.json", "images"),
@@ -136,7 +136,7 @@ test_that("records match mlcroissant on its hermetic datasets and titanic", {
 })
 
 test_that("values are cast by data type", {
-  withr::local_options(croissant.cache_dir = withr::local_tempdir())
+  local_options(croissant.cache_dir = local_tempdir())
   tab <- read_record_set(
     dataset_path("1.0", "titanic", "metadata.json"),
     "passengers"
@@ -159,7 +159,7 @@ test_that("values are cast by data type", {
 })
 
 test_that("output selects the table class", {
-  withr::local_options(croissant.cache_dir = withr::local_tempdir())
+  local_options(croissant.cache_dir = local_tempdir())
   path <- dataset_path("1.0", "titanic", "metadata.json")
   expect_s3_class(read_record_set(path, "genders"), "data.table")
   df <- read_record_set(path, "genders", output = "data.frame")
@@ -171,7 +171,7 @@ test_that("output selects the table class", {
 })
 
 test_that("a Croissant object reads with base, and its record set by name", {
-  withr::local_options(croissant.cache_dir = withr::local_tempdir())
+  local_options(croissant.cache_dir = local_tempdir())
   dir <- dataset_path("1.0", "titanic")
   x <- read_croissant(file.path(dir, "metadata.json"))
   tab <- read_record_set(x, "genders", base = dir)
@@ -187,8 +187,8 @@ test_that("a Croissant object reads with base, and its record set by name", {
 })
 
 test_that("a downloaded file is verified against its sha256 and cached", {
-  cache <- withr::local_tempdir()
-  src <- withr::local_tempfile(fileext = ".csv")
+  cache <- local_tempdir()
+  src <- local_tempfile(fileext = ".csv")
   writeLines(c("a", "1"), src)
   url <- paste0("file://", normalizePath(src))
   sha <- sha256_file(src)

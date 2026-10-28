@@ -17,7 +17,7 @@ typed_table <- function() {
 }
 
 round_trip <- function(x, format, version = "1.1") {
-  dir <- withr::local_tempdir(.local_envir = parent.frame())
+  dir <- local_tempdir(envir = parent.frame())
   m <- croissant_from_data(
     x,
     file.path(dir, paste0("data.", format)),
@@ -96,7 +96,7 @@ test_that("the FileObject records the file's size and sha256", {
 })
 
 test_that("unsupported columns and ids are rejected", {
-  dir <- withr::local_tempdir()
+  dir <- local_tempdir()
   x <- data.frame(a = 1:2)
   x[["l"]] <- list(1, 2)
   expect_error(

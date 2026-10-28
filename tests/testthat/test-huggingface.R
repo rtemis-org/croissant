@@ -24,7 +24,7 @@ test_that("hf:// paths parse as rtemis parses them", {
 })
 
 test_that("Hub repository URLs in Croissant metadata resolve to repo and revision", {
-  withr::local_envvar(HF_ENDPOINT = NA)
+  local_envvar(HF_ENDPOINT = NA)
   expect_identical(
     hf_repo_url(
       "https://huggingface.co/datasets/ylecun/mnist/tree/refs%2Fconvert%2Fparquet"
@@ -36,12 +36,12 @@ test_that("Hub repository URLs in Croissant metadata resolve to repo and revisio
     list(repo = "ylecun/mnist", revision = "main")
   )
   expect_null(hf_repo_url("https://example.org/datasets/a/b"))
-  withr::local_envvar(HF_ENDPOINT = "ftp://hub")
+  local_envvar(HF_ENDPOINT = "ftp://hub")
   expect_error(hf_endpoint(), class = "rtemis_value_error")
 })
 
 test_that("a downloaded file is checked against size, LFS SHA-256, and git blob SHA-1", {
-  path <- withr::local_tempfile()
+  path <- local_tempfile()
   writeBin(charToRaw("hello\n"), path)
   # `git hash-object` of "hello\n".
   blob <- "ce013625030ba8dba906f756967f9e9ca394464a"
@@ -62,18 +62,18 @@ test_that("a downloaded file is checked against size, LFS SHA-256, and git blob 
 })
 
 test_that("a token is read from HF_TOKEN", {
-  withr::local_envvar(HF_TOKEN = "secret")
+  local_envvar(HF_TOKEN = "secret")
   expect_identical(hf_token(), "secret")
   expect_identical(hf_token("given"), "given")
-  withr::local_envvar(HF_TOKEN = NA)
+  local_envvar(HF_TOKEN = NA)
   expect_identical(hf_token(), "")
 })
 
 test_that("Hub metadata and records read from the Hugging Face Hub", {
   skip_on_cran()
   skip_if_offline("huggingface.co")
-  withr::local_options(croissant.cache_dir = withr::local_tempdir())
-  withr::local_envvar(HF_ENDPOINT = NA)
+  local_options(croissant.cache_dir = local_tempdir())
+  local_envvar(HF_ENDPOINT = NA)
   x <- read_croissant_hf("ylecun/mnist")
   expect_true(is_valid(validate_croissant(x)))
   tab <- read_record_set(x, "mnist", n_max = 5L, verbosity = 0L)
