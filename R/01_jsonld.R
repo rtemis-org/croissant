@@ -39,9 +39,23 @@ read_json_input <- function(x) {
   if (grepl("^\\s*\\{", x)) {
     txt <- x
   } else if (grepl("^https?://", x)) {
-    con <- url(x, encoding = "UTF-8")
-    on.exit(close(con), add = TRUE)
-    txt <- paste(readLines(con, warn = FALSE), collapse = "\n")
+    txt <- tryCatch(
+      {
+        con <- url(x, encoding = "UTF-8")
+        on.exit(close(con), add = TRUE)
+        paste(readLines(con, warn = FALSE), collapse = "\n")
+      },
+      error = function(e) {
+        abort(
+          "Reading ",
+          x,
+          " failed: ",
+          conditionMessage(e),
+          ". Check the URL and the network connection, or pass a local path.",
+          class = c("croissant_download_error", "rtemis_input_error")
+        )
+      }
+    )
   } else {
     if (!file.exists(x)) {
       abort(

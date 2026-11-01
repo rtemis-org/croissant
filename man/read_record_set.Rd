@@ -93,6 +93,7 @@ x <- Croissant(
   ))
 )
 read_record_set(x, "people", base = dir)
+unlink(dir, recursive = TRUE)
 }
 \author{
 EDG

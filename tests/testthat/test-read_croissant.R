@@ -128,6 +128,14 @@ test_that("a missing file raises an input error", {
   )
 })
 
+test_that("an unreachable URL raises a download error", {
+  skip_on_cran()
+  expect_error(
+    suppressWarnings(read_croissant("https://croissant.invalid/metadata.json")),
+    class = "croissant_download_error"
+  )
+})
+
 test_that("dataset properties typed by mlcroissant are read into typed slots", {
   x <- read_croissant(test_path("fixtures", "1.0", "dices-350.json"))
   expect_true(S7::S7_inherits(x@creator[[1L]], Organization))

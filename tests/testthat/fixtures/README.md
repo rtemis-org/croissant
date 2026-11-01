@@ -25,3 +25,8 @@ tests (`python/mlcroissant/mlcroissant/_src/datasets_test.py`), and
 `titanic`: each `metadata.json` or recipe document, its `data/`, and its
 `output/<record set>.jsonl`, the records mlcroissant produces.
 `titanic/output/passengers.jsonl` holds the first 100 of its 1309 records.
+
+The data files in `datasets/` are also distributed under the license that
+their dataset's `metadata.json` names, where it names one: AFL-3.0 for
+`titanic`, and CC BY 4.0 for `coco2014-mini`, `json-join`, `simple-join`,
+`simple-parquet`, `simple-split`, and `1.1/recipes/minimal_multilingual.json`.

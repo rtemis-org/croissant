@@ -14,8 +14,8 @@ datasets. \code{\link[=read_croissant]{read_croissant()}} reads a document into 
 Useful links:
 \itemize{
   \item \url{https://www.rtemis.org}
-  \item \url{https://docs.rtemis.org/r/croissant-api/}
   \item \url{https://github.com/rtemis-org/croissant}
+  \item \url{https://docs.rtemis.org/r/croissant-api/}
   \item Report bugs at \url{https://github.com/rtemis-org/croissant/issues}
 }
 
@@ -26,6 +26,11 @@ Useful links:
 Authors:
 \itemize{
   \item E.D. Gennatas \email{gennatas@gmail.com} (\href{https://orcid.org/0000-0001-9280-3609}{ORCID}) [copyright holder]
+}
+
+Other contributors:
+\itemize{
+  \item MLCommons (Example metadata and data in tests/testthat/fixtures) [copyright holder]
 }
 
 }

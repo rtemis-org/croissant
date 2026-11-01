@@ -1,6 +1,6 @@
 # BSD 3-Clause License
 
-Copyright (c) 2016-2026, E.D. Gennatas
+Copyright (c) 2026, E.D. Gennatas
 
 All rights reserved.
 

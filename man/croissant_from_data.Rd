@@ -65,6 +65,7 @@ x <- croissant_from_data(
 x
 write_croissant(x, file.path(dir, "metadata.json"))
 head(read_record_set(file.path(dir, "metadata.json"), "default"))
+unlink(dir, recursive = TRUE)
 }
 \author{
 EDG

@@ -1,13 +1,25 @@
 Package: croissant
 Version: 0.0.1
-Title: 'Croissant' Metadata Reader and Writer
-Date: 2026-10-25
-Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"),
-    email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609"))
-Description: Read and write 'croissant' metadata files for machine learning datasets.
+Title: Read, Write, and Validate Croissant Dataset Metadata
+Date: 2026-10-31
+Authors@R: c(
+    person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"),
+        email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609")),
+    person("MLCommons", role = "cph",
+        comment = "Example metadata and data in tests/testthat/fixtures")
+    )
+Description: Reads, writes, and validates Croissant metadata, the MLCommons
+    vocabulary for describing machine learning datasets in JSON for Linked Data
+    (JSON-LD), described in Akhtar et al. (2024) <doi:10.1145/3650203.3663326>.
+    Croissant 1.0 and 1.1 documents are represented as 'S7' objects and written
+    back as JSON-LD. Validation reports the errors and warnings of each node.
+    Record sets are read as tables from CSV, TSV, JSON, JSON Lines, and Parquet
+    files, local or downloaded, including files in zip and tar archives, with
+    checksum verification. Metadata can be generated from a data frame, and the
+    metadata and files of 'Hugging Face' datasets are read from the Hub.
 License: BSD_3_clause + file LICENSE
-URL: https://www.rtemis.org, https://docs.rtemis.org/r/croissant-api/,
-    https://github.com/rtemis-org/croissant
+URL: https://www.rtemis.org, https://github.com/rtemis-org/croissant,
+    https://docs.rtemis.org/r/croissant-api/
 BugReports: https://github.com/rtemis-org/croissant/issues
 ByteCompile: yes
 Depends:
@@ -26,7 +38,6 @@ Suggests:
     jsonld,
     tibble,
     testthat (>= 3.0.0)
-Additional_repositories: https://rtemis-org.r-universe.dev
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Config/testthat/edition: 3

@@ -39,6 +39,7 @@ cat(write_croissant(x))
 path <- tempfile(fileext = ".json")
 write_croissant(x, path)
 read_croissant(path)
+unlink(path)
 }
 \author{
 EDG

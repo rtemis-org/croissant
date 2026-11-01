@@ -35,6 +35,7 @@
 #' path <- tempfile(fileext = ".json")
 #' write_croissant(x, path)
 #' read_croissant(path)
+#' unlink(path)
 write_croissant <- function(x, path = NULL, pretty = TRUE) {
   if (!S7_inherits(x, Croissant)) {
     abort(

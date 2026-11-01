@@ -63,6 +63,7 @@
 #' x
 #' write_croissant(x, file.path(dir, "metadata.json"))
 #' head(read_record_set(file.path(dir, "metadata.json"), "default"))
+#' unlink(dir, recursive = TRUE)
 croissant_from_data <- function(
   x,
   file,

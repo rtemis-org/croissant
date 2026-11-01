@@ -503,8 +503,13 @@ hf_data_files <- function(files) {
 #' @export
 #'
 #' @examplesIf interactive()
-#' path <- hf_download("hf://datasets/ylecun/mnist@refs%2Fconvert%2Fparquet/mnist/test/0000.parquet")
+#' cache_dir <- tempfile()
+#' path <- hf_download(
+#'   "hf://datasets/ylecun/mnist@refs%2Fconvert%2Fparquet/mnist/test/0000.parquet",
+#'   cache_dir = cache_dir
+#' )
 #' attr(path, "hf")
+#' unlink(cache_dir, recursive = TRUE)
 hf_download <- function(
   path,
   cache_dir = getOption(
@@ -583,7 +588,9 @@ hf_download <- function(
 #' @examplesIf interactive()
 #' x <- read_croissant_hf("ylecun/mnist")
 #' x
-#' head(read_record_set(x, "mnist", n_max = 5L))
+#' cache_dir <- tempfile()
+#' head(read_record_set(x, "mnist", n_max = 5L, cache_dir = cache_dir))
+#' unlink(cache_dir, recursive = TRUE)
 read_croissant_hf <- function(repo, token = NULL) {
   check_character_scalar(repo)
   if (is_hf(repo)) {

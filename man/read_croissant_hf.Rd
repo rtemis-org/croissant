@@ -27,7 +27,9 @@ which downloads the Parquet files they name from the dataset's
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 x <- read_croissant_hf("ylecun/mnist")
 x
-head(read_record_set(x, "mnist", n_max = 5L))
+cache_dir <- tempfile()
+head(read_record_set(x, "mnist", n_max = 5L, cache_dir = cache_dir))
+unlink(cache_dir, recursive = TRUE)
 \dontshow{\}) # examplesIf}
 }
 \author{
