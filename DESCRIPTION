@@ -14,9 +14,9 @@ Description: Reads, writes, and validates Croissant metadata, the MLCommons
     Croissant 1.0 and 1.1 documents are represented as 'S7' objects and written
     back as JSON-LD. Validation reports the errors and warnings of each node.
     Record sets are read as tables from CSV, TSV, JSON, JSON Lines, and Parquet
-    files, local or downloaded, including files in zip and tar archives, with
+    files, local or remote, including files in zip and tar archives, with
     checksum verification. Metadata can be generated from a data frame, and the
-    metadata and files of 'Hugging Face' datasets are read from the Hub.
+    metadata and files of datasets are read from the 'Hugging Face Hub'.
 License: BSD_3_clause + file LICENSE
 URL: https://www.rtemis.org, https://github.com/rtemis-org/croissant,
     https://docs.rtemis.org/r/croissant-api/
