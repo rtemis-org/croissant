@@ -398,3 +398,38 @@ test_that("a struct column of a Parquet file reads with every member", {
     as.data.frame(arrow::read_parquet(flat))[c("z", "x")]
   )
 })
+
+test_that("an absolute local path is recognized on each platform", {
+  expect_true(is_absolute_path("/data/a.csv", windows = FALSE))
+  expect_false(is_absolute_path("data/a.csv", windows = FALSE))
+  expect_false(is_absolute_path("C:/data/a.csv", windows = FALSE))
+  expect_true(is_absolute_path("/data/a.csv", windows = TRUE))
+  expect_true(is_absolute_path("C:/data/a.csv", windows = TRUE))
+  expect_true(is_absolute_path("D:\\temp\\a.csv", windows = TRUE))
+  expect_true(is_absolute_path("\\\\server\\share\\a.csv", windows = TRUE))
+  expect_false(is_absolute_path("C:a.csv", windows = TRUE))
+  expect_false(is_absolute_path("data\\a.csv", windows = TRUE))
+  # An absolute path in the platform's own form reads without `base`.
+  path <- file.path(local_tempdir(), "a.csv")
+  writeLines(c("x", "1", "2"), path)
+  x <- Croissant(
+    name = "absolute",
+    distribution = list(FileObject(
+      id = "f",
+      content_url = normalizePath(path),
+      encoding_format = "text/csv"
+    )),
+    record_set = list(RecordSet(
+      id = "r",
+      field = list(Field(
+        id = "r/x",
+        data_type = "sc:Integer",
+        source = Source(file_object = "f", extract = Extract(column = "x"))
+      ))
+    ))
+  )
+  expect_identical(
+    read_record_set(x, "r", output = "data.frame", verbosity = 0L)$x,
+    c(1L, 2L)
+  )
+})

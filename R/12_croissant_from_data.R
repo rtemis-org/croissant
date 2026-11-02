@@ -188,7 +188,7 @@ croissant_from_data <- function(
 data_base <- function(file, content_url) {
   if (
     grepl("^[A-Za-z][A-Za-z0-9+.-]*://", content_url) ||
-      startsWith(content_url, "/")
+      is_absolute_path(content_url)
   ) {
     return(NULL)
   }

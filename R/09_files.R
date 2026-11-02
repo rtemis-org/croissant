@@ -166,6 +166,41 @@ container_of <- function(ctx, file) {
 } # /croissant::container_of
 
 
+# %% is_windows ----
+#' Whether R runs on Windows
+#'
+#' @return Logical scalar.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+is_windows <- function() {
+  .Platform[["OS.type"]] == "windows"
+} # /croissant::is_windows
+
+
+# %% is_absolute_path ----
+#' Whether a local path is absolute
+#'
+#' A path is absolute when it starts with `/`, and, on Windows, also when it
+#' starts with a drive letter and a separator (`C:/`, `C:\`) or is a UNC path
+#' (`\\server\share`).
+#'
+#' @param path Character scalar: Path.
+#' @param windows Logical scalar: Whether to recognize Windows paths.
+#'
+#' @return Logical scalar.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+is_absolute_path <- function(path, windows = is_windows()) {
+  startsWith(path, "/") ||
+    (windows &&
+      (grepl("^[A-Za-z]:[/\\\\]", path) || startsWith(path, "\\\\")))
+} # /croissant::is_absolute_path
+
+
 # %% fetch ----
 #' Resolve a `contentUrl` to a local path
 #'
@@ -186,7 +221,7 @@ container_of <- function(ctx, file) {
 fetch <- function(ctx, url, sha256 = NULL, md5 = NULL) {
   base <- ctx[["base"]]
   is_relative <- !grepl("^[A-Za-z][A-Za-z0-9+.-]*://", url) &&
-    !startsWith(url, "/")
+    !is_absolute_path(url)
   if (is_relative && !is.null(base) && is_hf(base)) {
     url <- paste0(sub("/+$", "", base), "/", url)
   }
@@ -238,9 +273,14 @@ fetch <- function(ctx, url, sha256 = NULL, md5 = NULL) {
     }
   }
   if (startsWith(url, "file://")) {
-    return(sub("^file://", "", url))
+    path <- sub("^file://", "", url)
+    # file:///C:/data.csv names the Windows path C:/data.csv.
+    if (is_windows() && grepl("^/[A-Za-z]:", path)) {
+      path <- substring(path, 2L)
+    }
+    return(path)
   }
-  if (startsWith(url, "/")) {
+  if (is_absolute_path(url)) {
     return(url)
   }
   download_cached(ctx, url, sha256, md5)
