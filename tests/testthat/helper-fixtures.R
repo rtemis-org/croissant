@@ -2,20 +2,18 @@
 # ::croissant::
 # 2026- EDG rtemis.org
 
-# Paths of the upstream example documents, named by version and dataset.
+# Paths of the upstream example documents, named by version and dataset. The
+# examples are the keys of fixtures/mlcroissant-warnings.json, so a file left
+# in fixtures/1.0 or fixtures/1.1 by an earlier check of the package on the
+# same machine is not read as an example.
 fixture_paths <- function(versions = c("1.0", "1.1")) {
-  paths <- unlist(lapply(versions, function(v) {
-    list.files(
-      test_path("fixtures", v),
-      pattern = "\\.json$",
-      full.names = TRUE
-    )
-  }))
-  names(paths) <- paste0(
-    basename(dirname(paths)),
-    "/",
-    sub("\\.json$", "", basename(paths))
-  )
+  examples <- names(jsonlite::read_json(test_path(
+    "fixtures",
+    "mlcroissant-warnings.json"
+  )))
+  examples <- examples[sub("/.*$", "", examples) %in% versions]
+  paths <- test_path("fixtures", paste0(examples, ".json"))
+  names(paths) <- examples
   paths
 }
 

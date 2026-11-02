@@ -5,6 +5,7 @@
 test_that("every upstream 1.0 and 1.1 example reads into a Croissant object", {
   paths <- fixture_paths()
   expect_length(paths, 43L)
+  expect_true(all(file.exists(paths)))
   for (nm in names(paths)) {
     # huggingface-data_provenance_initiative uses equivalentProperty without
     # defining it, which read_croissant() reports as a warning.
