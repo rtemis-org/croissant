@@ -1,6 +1,4 @@
-# croissant NEWS
-
-## Version 0.0.1
+# croissant 0.0.1
 
 - `read_croissant()` reads Croissant 1.0 and 1.1 JSON-LD metadata from a file, URL, or JSON string into a `Croissant` object.
 - `write_croissant()` writes a `Croissant` object as JSON-LD with the standard context of its version.
