@@ -9,8 +9,12 @@ The files in `0.8/`, `1.0/`, and `1.1/` are the example metadata files from
 `python/mlcroissant/mlcroissant/_src/tests/graphs/1.1/multilingual_fields/metadata.json`
 from the same commit.
 
-These files are copyright MLCommons and distributed under the Apache License,
-Version 2.0, included as [LICENSE-croissant.md](LICENSE-croissant.md).
+These files, and the files in `invalid/` and `datasets/`, are copyright
+MLCommons Association and contributors and distributed under the Apache
+License, Version 2.0, included as [LICENSE-croissant.md](LICENSE-croissant.md).
+Some of them hold content from third-party datasets and from the Hugging Face
+Hub, under their own terms, listed in `inst/COPYRIGHTS` of the package
+source.
 
 `invalid/1.0/` and `invalid/1.1/` hold
 `python/mlcroissant/mlcroissant/_src/tests/graphs/<version>/<name>/metadata.json`

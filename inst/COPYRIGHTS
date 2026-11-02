@@ -1,0 +1,36 @@
+croissant is copyright E.D. Gennatas and is licensed under the BSD 3-Clause
+License (file LICENSE), except for the files listed below.
+
+tests/testthat/fixtures
+-----------------------
+
+The example documents and data in tests/testthat/fixtures are copied from the
+mlcommons/croissant repository (https://github.com/mlcommons/croissant) at
+commit ec24358: copyright MLCommons Association and contributors, licensed
+under the Apache License, Version 2.0, included as
+tests/testthat/fixtures/LICENSE-croissant.md. tests/testthat/fixtures/README.md
+gives the source path of each file. mlcroissant-warnings.json and README.md in
+that directory are part of croissant.
+
+Some of these files hold content from third-party datasets, as the upstream
+repository distributes it:
+
+- datasets/1.0/coco2014-mini/data/captions_train2014.json and
+  instances_train2014.json: excerpts of the COCO 2014 captions and instance
+  annotations, copyright COCO Consortium (https://cocodataset.org), licensed
+  under the Creative Commons Attribution 4.0 License. The images in
+  train2014.zip are 3 x 2 pixel placeholders.
+- datasets/1.0/pass-mini/data/pass_metadata.csv: rows of the metadata of the
+  PASS dataset (Asano et al., 2021, https://zenodo.org/record/6615455),
+  licensed under the Creative Commons Attribution 4.0 License; each row names
+  the Flickr user and the license of an image. The images in PASS.0.tar and
+  PASS.1.tar are 3 x 2 pixel placeholders.
+- datasets/1.0/titanic/data/titanic.csv: the Titanic passenger data of
+  OpenML dataset 40945 (https://www.openml.org/d/40945), compiled by Thomas
+  Cason from the Encyclopedia Titanica, declared in its metadata under the
+  Academic Free License 3.0.
+- datasets/1.0/audio_test/data/Clap.mp3 and Snap.mp3: audio clips whose
+  source the upstream repository does not state.
+- 1.0/huggingface-*.json and 1.1/huggingface-*.json: metadata that the
+  Hugging Face Hub generates for datasets on the Hub; their descriptions are
+  taken from each dataset's card, written by the dataset's authors.

@@ -38,7 +38,7 @@ Authors:
 
 Other contributors:
 \itemize{
-  \item MLCommons (Example metadata and data in tests/testthat/fixtures) [copyright holder]
+  \item MLCommons Association (Example documents in tests/testthat/fixtures, from mlcommons/croissant (Apache License 2.0)) [copyright holder]
 }
 
 }
