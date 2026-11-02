@@ -409,11 +409,14 @@ hf_fetch <- function(rev, file, cache_dir, token, verbosity) {
     rev[["commit"]],
     file
   )
+  # The path form of the input, pinned to the short commit, which the Hub
+  # resolves, so the message can be pasted into hf_download().
   label <- paste0(
+    "hf://datasets/",
     rev[["repo"]],
     "@",
     substr(rev[["commit"]], 1L, 7L),
-    " ",
+    "/",
     file
   )
   if (file.exists(dest) && isTRUE(file.size(dest) == listed[["size"]])) {
@@ -430,7 +433,14 @@ hf_fetch <- function(rev, file, cache_dir, token, verbosity) {
     "/",
     utils::URLencode(file, reserved = FALSE)
   )
-  info("Downloading ", label, verbosity = verbosity)
+  info(
+    "Downloading ",
+    label,
+    " (",
+    size_label(paste(format(listed[["size"]], scientific = FALSE), "B")),
+    ")",
+    verbosity = verbosity
+  )
   failed <- hf_get(url, dest, token)
   if (!is.null(failed)) {
     unlink(dest)

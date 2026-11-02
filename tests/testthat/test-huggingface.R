@@ -87,11 +87,22 @@ test_that("the metadata file of rtemis/demo reads factors from the Hub", {
   expect_identical(dim(tab), c(1000L, 101L))
   expect_identical(levels(tab[["class"]]), c("no", "yes"))
   expect_identical(levels(tab[["x39"]]), c("A", "B", "C", "D", "E"))
-  file <- hf_download(
-    "hf://datasets/rtemis/demo@v1.0.0/data/classification.parquet",
-    verbosity = 0L
+  pinned <- "hf://datasets/rtemis/demo@53a1ec8/data/classification.parquet"
+  cache_dir <- local_tempdir()
+  expect_message(
+    file <- hf_download(
+      "hf://datasets/rtemis/demo@v1.0.0/data/classification.parquet",
+      cache_dir = cache_dir
+    ),
+    paste0("Downloading ", pinned, " (690.7 kB)"),
+    fixed = TRUE
   )
   expect_true(file.exists(file))
+  expect_message(
+    hf_download(pinned, cache_dir = cache_dir),
+    paste("Reading cached", pinned),
+    fixed = TRUE
+  )
   expect_identical(
     attr(file, "hf"),
     paste0(
