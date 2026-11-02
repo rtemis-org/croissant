@@ -273,8 +273,8 @@ test_that("a node is built as its constructor builds it", {
   )
   expect_true(same(new_node("Croissant", nodes), do.call(Croissant, nodes)))
   # Every node of a read document, with RAI and extension properties.
-  # read_croissant() sets `base` after construction, so it is set to NULL
-  # before the comparison.
+  # read_croissant() sets `base` after construction, so the rebuilt root is
+  # constructed without `base` and then assigned it.
   rebuild <- function(x) {
     if (S7::S7_inherits(x)) {
       do.call(S7::S7_class(x), lapply(S7::props(x), rebuild))
@@ -288,8 +288,10 @@ test_that("a node is built as its constructor builds it", {
     test_path("fixtures", "1.0", "bigcode-the-stack.json"),
     verbosity = 0L
   )
-  x@base <- NULL
-  expect_true(same(x, rebuild(x)))
+  props <- S7::props(x)
+  y <- do.call(Croissant, lapply(props[names(props) != "base"], rebuild))
+  y@base <- x@base
+  expect_true(same(x, y))
   error_of <- function(expr) tryCatch(expr, error = conditionMessage)
   expect_identical(
     error_of(new_node("Field", list(id = "x", name = character()))),
