@@ -5,15 +5,18 @@
 # Croissant metadata for an R table.
 # spec: croissant/read-write#metadata-from-data
 
-# Croissant data type of each R column class, checked in order.
+# Croissant data type of each R column class, by the full class vector, so
+# that a class built on another (difftime on double, IDate on Date) has no
+# entry. `read_record_set()` returns each class as it was written.
 .type_by_class <- c(
-  integer64 = "sc:Integer",
   integer = "sc:Integer",
+  integer64 = "cr:Int64",
   numeric = "sc:Float",
   logical = "sc:Boolean",
   Date = "sc:Date",
-  POSIXct = "sc:DateTime",
+  `POSIXct/POSIXt` = "sc:DateTime",
   factor = "sc:Text",
+  `ordered/factor` = "sc:Text",
   character = "sc:Text"
 )
 
@@ -24,9 +27,13 @@
 #' Writes `x` to `file` as CSV or Parquet, and returns a `Croissant` object
 #' that describes it: one `FileObject` with the file's size and SHA-256
 #' checksum, one `RecordSet`, and one `Field` per column, whose data type
-#' follows the column class: integer to `sc:Integer`, double to `sc:Float`,
-#' logical to `sc:Boolean`, Date to `sc:Date`, POSIXct to `sc:DateTime`, and
-#' character and factor to `sc:Text`. Write the metadata with
+#' follows the column class: integer to `sc:Integer`, integer64 (bit64) to
+#' `cr:Int64` (Croissant 1.1), double to `sc:Float`, logical to `sc:Boolean`,
+#' Date to `sc:Date`, POSIXct to `sc:DateTime`, and character, factor, and
+#' ordered factor to `sc:Text`. [read_record_set()] returns each column with
+#' the class it was written with, so a column of any other class, including a
+#' class built on one of these, such as difftime, is an error. Write the
+#' metadata with
 #' [write_croissant()] into the directory where `content_url` resolves to
 #' `file`. That directory is the `base` of the returned object, so
 #' [read_record_set()] reads the object's records before it is written.
@@ -37,9 +44,12 @@
 #' enumeration record set, `<record_set>_<column>_levels`, with data type
 #' `sc:Enumeration`, one field `label`, and the levels as inline records; the
 #' factor's field `references` that field, so [read_record_set()] returns the
-#' column as a factor with the same levels. In CSV, a missing value is written
-#' as an empty field and an empty string as `""`, and they read back as `NA`
-#' and `""`. Parquet keeps every other column type.
+#' column as a factor with the same levels. An ordered factor reads back
+#' ordered, and a POSIXct column with its time zone, from Parquet; CSV holds
+#' neither, so an ordered factor, or a POSIXct column in a time zone other
+#' than UTC, is an error with `format = "csv"`. In CSV, a missing value is
+#' written as an empty field and an empty string as `""`, and they read back
+#' as `NA` and `""`.
 #'
 #' @param x data.frame, data.table, or tibble: The data.
 #' @param file Character: Path of the data file to write.
@@ -104,7 +114,7 @@ croissant_from_data <- function(
   }
   types <- vapply(
     names(x),
-    \(col) column_data_type(x[[col]], col),
+    \(col) column_data_type(x[[col]], col, format, version),
     character(1L)
   )
   data <- as.data.frame(x)
@@ -194,31 +204,77 @@ data_base <- function(file, content_url) {
 # %% column_data_type ----
 #' Croissant data type of a column
 #'
+#' Each class in `.type_by_class` reads back through `read_record_set()` as
+#' the same class, so every other class is an error. A format or version that
+#' cannot hold a class exactly is an error too: CSV holds neither the order
+#' of an ordered factor nor a time zone other than UTC, and `cr:Int64` is a
+#' Croissant 1.1 data type.
+#'
 #' @param v Column vector.
 #' @param col Character: Column name, for messages.
+#' @param format Character \{"csv", "parquet"\}: File format.
+#' @param version Character \{"1.0", "1.1"\}: Croissant version.
 #'
 #' @return Character scalar: Compact IRI.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-column_data_type <- function(v, col) {
-  hit <- names(.type_by_class)[names(.type_by_class) %in% class(v)]
-  if (is.double(v) && length(hit) == 0L) {
-    hit <- "numeric"
-  }
-  if (length(hit) == 0L) {
+column_data_type <- function(v, col, format, version) {
+  cls <- paste(class(v), collapse = "/")
+  if (!cls %in% names(.type_by_class)) {
     abort(
       "Column \"",
       col,
       "\" has class ",
-      paste(class(v), collapse = "/"),
-      ", which has no Croissant data type. Convert it to integer, double, ",
-      "logical, character, factor, Date, or POSIXct.",
+      cls,
+      ", which does not read back as the same class. Convert it to integer, ",
+      "integer64, double, logical, character, factor, ordered factor, Date, ",
+      "or POSIXct",
+      if (inherits(v, "difftime")) {
+        paste0(", as `as.numeric(x, units = \"", units(v), "\")`")
+      } else if (inherits(v, "Date")) {
+        ", as `as.Date(x)`"
+      },
+      ".",
       class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
-  unname(.type_by_class[[hit[[1L]]]])
+  if (format == "csv" && is.ordered(v)) {
+    abort(
+      "Column \"",
+      col,
+      "\" is an ordered factor, and CSV records no level order. Write ",
+      "`format = \"parquet\"`, or convert it with `factor(x, ordered = FALSE)`.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  if (
+    format == "csv" &&
+      inherits(v, "POSIXct") &&
+      !identical(attr(v, "tzone"), "UTC")
+  ) {
+    abort(
+      "Column \"",
+      col,
+      "\" is a date-time in time zone \"",
+      attr(v, "tzone") %||% "",
+      "\", and CSV records date-times in UTC. Write ",
+      "`format = \"parquet\"`, which keeps the time zone, or set ",
+      "`attr(x, \"tzone\") <- \"UTC\"`.",
+      class = c("rtemis_type_error", "rtemis_input_error")
+    )
+  }
+  if (cls == "integer64" && version != "1.1") {
+    abort(
+      "Column \"",
+      col,
+      "\" is integer64, whose data type cr:Int64 is defined in Croissant ",
+      "1.1. Use `version = \"1.1\"`.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  unname(.type_by_class[[cls]])
 } # /croissant::column_data_type
 
 

@@ -27,7 +27,8 @@
 #' type `sc:Enumeration`) is a factor whose levels are the enumeration's
 #' values in record order, as [croissant_from_data()] writes a factor. A
 #' column holding a value outside the enumeration stays character, with a
-#' warning.
+#' warning. Any other text field that the file stores as categorical, such as
+#' a dictionary-encoded Parquet column, is a factor with the file's levels.
 #'
 #' Files with an `http(s)` `contentUrl` are downloaded into `cache_dir`, and
 #' their `sha256` or `md5` is verified. Files of a Hugging Face dataset
@@ -42,10 +43,14 @@
 #' path; with a text data type it holds the file's text.
 #'
 #' Values are cast by the field's first data type with an R counterpart:
-#' `sc:Integer` to integer, `sc:Float` and `sc:Number` to double,
-#' `sc:Boolean` to logical, `sc:Date` to Date, `sc:DateTime` to POSIXct
-#' (UTC), and `sc:Text` and `sc:URL` to character. A repeated field, or one
-#' split by a `separator` transform, is a list column.
+#' `sc:Integer` to integer, `cr:Int64` to integer64 (requires the 'bit64'
+#' package), `sc:Float` and `sc:Number` to double, `sc:Boolean` to logical,
+#' `sc:Date` to Date, `sc:DateTime` to POSIXct, and `sc:Text` and `sc:URL` to
+#' character. A date-time the file stores as one, as Parquet does, keeps its
+#' time zone; a date-time read from text is in UTC. A factor keeps its
+#' `ordered` flag. A repeated field, or one split by a `separator` transform,
+#' is a list column. Each column [croissant_from_data()] writes reads back
+#' with the class it was written with.
 #'
 #' @param x `Croissant` object, or Character: Path or URL of a Croissant
 #' JSON-LD file.
@@ -259,8 +264,8 @@ column_names <- function(rs, ids) {
 # %% enumeration_factors ----
 #' Convert fields that reference an enumeration to factors
 #'
-#' A character column whose field `references` a field of a record set with
-#' data type `sc:Enumeration` becomes a factor. Its levels are the values of
+#' A character or factor column whose field `references` a field of a record
+#' set with data type `sc:Enumeration` becomes a factor. Its levels are the values of
 #' the referenced field in record order: the order of the enumeration's
 #' inline `data`, or of its file. A column holding a value outside the
 #' enumeration stays character, with a warning.
@@ -280,9 +285,15 @@ enumeration_factors <- function(ctx, rs, tab) {
     f <- leaf[["field"]]
     ref <- f@references
     values <- tab[[f@id]]
-    if (is.null(ref) || is.null(ref@field) || !is.character(values)) {
+    if (
+      is.null(ref) ||
+        is.null(ref@field) ||
+        !(is.character(values) || is.factor(values))
+    ) {
       next
     }
+    ordered <- is.ordered(values)
+    values <- as.character(values)
     enum_id <- ctx[["field_rs"]][ref@field]
     if (is.na(enum_id)) {
       next
@@ -306,9 +317,14 @@ enumeration_factors <- function(ctx, rs, tab) {
         ".",
         use_warning = TRUE
       )
+      data.table::set(tab, j = f@id, value = values)
       next
     }
-    data.table::set(tab, j = f@id, value = factor(values, levels = levels))
+    data.table::set(
+      tab,
+      j = f@id,
+      value = factor(values, levels = levels, ordered = ordered)
+    )
   }
   invisible(tab)
 } # /croissant::enumeration_factors

@@ -127,7 +127,11 @@ test_that("Hub-generated metadata of rtemis/demo reads its records", {
   tab <- read_record_set(x, "classification", n_max = 5L, verbosity = 0L)
   expect_identical(nrow(tab), 5L)
   expect_identical(names(tab)[c(1L, 2L, 102L)], c("split", "x1", "class"))
-  expect_identical(tab[["class"]], c("yes", "no", "yes", "yes", "no"))
+  expect_identical(
+    tab[["class"]],
+    factor(c("yes", "no", "yes", "yes", "no"), levels = c("no", "yes"))
+  )
+  expect_identical(levels(tab[["x39"]]), c("A", "B", "C", "D", "E"))
   expect_identical(unique(tab[["split"]]), "train")
   path <- hf_download(
     "hf://datasets/rtemis/demo@refs%2Fconvert%2Fparquet/classification/train/0000.parquet",

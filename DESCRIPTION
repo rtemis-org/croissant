@@ -36,6 +36,7 @@ Imports:
     utils
 Suggests:
     arrow,
+    bit64,
     jsonld,
     tibble,
     testthat (>= 3.0.0)

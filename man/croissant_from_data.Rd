@@ -42,9 +42,13 @@ metadata document.}
 Writes \code{x} to \code{file} as CSV or Parquet, and returns a \code{Croissant} object
 that describes it: one \code{FileObject} with the file's size and SHA-256
 checksum, one \code{RecordSet}, and one \code{Field} per column, whose data type
-follows the column class: integer to \code{sc:Integer}, double to \code{sc:Float},
-logical to \code{sc:Boolean}, Date to \code{sc:Date}, POSIXct to \code{sc:DateTime}, and
-character and factor to \code{sc:Text}. Write the metadata with
+follows the column class: integer to \code{sc:Integer}, integer64 (bit64) to
+\code{cr:Int64} (Croissant 1.1), double to \code{sc:Float}, logical to \code{sc:Boolean},
+Date to \code{sc:Date}, POSIXct to \code{sc:DateTime}, and character, factor, and
+ordered factor to \code{sc:Text}. \code{\link[=read_record_set]{read_record_set()}} returns each column with
+the class it was written with, so a column of any other class, including a
+class built on one of these, such as difftime, is an error. Write the
+metadata with
 \code{\link[=write_croissant]{write_croissant()}} into the directory where \code{content_url} resolves to
 \code{file}. That directory is the \code{base} of the returned object, so
 \code{\link[=read_record_set]{read_record_set()}} reads the object's records before it is written.
@@ -56,9 +60,12 @@ as a factor or categorical column. Its levels, in order, also form an
 enumeration record set, \verb{<record_set>_<column>_levels}, with data type
 \code{sc:Enumeration}, one field \code{label}, and the levels as inline records; the
 factor's field \code{references} that field, so \code{\link[=read_record_set]{read_record_set()}} returns the
-column as a factor with the same levels. In CSV, a missing value is written
-as an empty field and an empty string as \code{""}, and they read back as \code{NA}
-and \code{""}. Parquet keeps every other column type.
+column as a factor with the same levels. An ordered factor reads back
+ordered, and a POSIXct column with its time zone, from Parquet; CSV holds
+neither, so an ordered factor, or a POSIXct column in a time zone other
+than UTC, is an error with \code{format = "csv"}. In CSV, a missing value is
+written as an empty field and an empty string as \code{""}, and they read back
+as \code{NA} and \code{""}.
 }
 \examples{
 dir <- tempfile()

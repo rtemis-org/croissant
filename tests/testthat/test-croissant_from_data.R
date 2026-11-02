@@ -53,16 +53,117 @@ test_that("CSV and Parquet metadata validate and read back the table", {
         output = "data.frame",
         verbosity = 0L
       )
-      expect_equal(
-        y,
-        expected,
-        ignore_attr = TRUE,
-        label = paste(format, version)
-      )
-      expect_s3_class(y[["ts"]], "POSIXct")
-      expect_s3_class(y[["dt"]], "Date")
+      expect_identical(y, expected, label = paste(format, version))
     }
   }
+})
+
+# One column of each accepted class, each with a missing value. CSV holds
+# neither the order of an ordered factor nor a time zone other than UTC, and
+# integer64 (cr:Int64) needs Croissant 1.1.
+class_table <- function(format, version) {
+  x <- data.frame(
+    int = c(1L, NA, 3L),
+    dbl = c(1.5, NA, 3),
+    lgl = c(TRUE, NA, FALSE),
+    chr = c("a", NA, "c"),
+    fct = factor(c("u", NA, "v"), levels = c("v", "u", "w")),
+    date = as.Date("2026-01-01") + c(0L, NA, 2L),
+    utc = as.POSIXct(
+      c("2026-01-01 08:00:00", NA, "2026-07-01 09:30:00"),
+      tz = "UTC"
+    )
+  )
+  if (version == "1.1" && requireNamespace("bit64", quietly = TRUE)) {
+    x[["i64"]] <- bit64::as.integer64(c("1", NA, "9007199254740993"))
+  }
+  if (format == "parquet") {
+    x[["ord"]] <- factor(
+      c("lo", "hi", NA),
+      levels = c("lo", "hi"),
+      ordered = TRUE
+    )
+    x[["la"]] <- as.POSIXct(
+      c("2026-01-01 08:00:00", NA, "2026-07-01 09:30:00"),
+      tz = "America/Los_Angeles"
+    )
+    x[["local"]] <- as.POSIXct(c(
+      "2026-01-01 08:00:00",
+      NA,
+      "2026-07-01 09:30:00"
+    ))
+  }
+  x
+}
+
+test_that("every accepted class reads back identical, levels, order, and zone included", {
+  formats <- "csv"
+  if (requireNamespace("arrow", quietly = TRUE)) {
+    formats <- c(formats, "parquet")
+  }
+  for (format in formats) {
+    for (version in c("1.0", "1.1")) {
+      x <- class_table(format, version)
+      rt <- round_trip(x, format, version)
+      expect_identical(
+        nrow(issues(validate_croissant(rt[["path"]]), severity = "error")),
+        0L,
+        label = paste(format, version)
+      )
+      y <- read_record_set(
+        rt[["path"]],
+        "default",
+        output = "data.frame",
+        verbosity = 0L
+      )
+      expect_identical(y, x, label = paste(format, version))
+    }
+  }
+})
+
+test_that("a class that does not read back as itself is rejected", {
+  dir <- local_tempdir()
+  write <- function(x, format = "csv", version = "1.1") {
+    croissant_from_data(
+      x,
+      file.path(dir, paste0("x.", format)),
+      name = "x",
+      format = format,
+      version = version
+    )
+  }
+  expect_error(
+    write(data.frame(h = as.difftime(c(1, 2), units = "hours"))),
+    'as.numeric\\(x, units = "hours"\\)',
+    class = "rtemis_type_error"
+  )
+  idate <- structure(20454L, class = c("IDate", "Date"))
+  expect_error(
+    write(data.frame(z = idate)),
+    "as.Date\\(x\\)",
+    class = "rtemis_type_error"
+  )
+  expect_error(
+    write(data.frame(o = factor("a", ordered = TRUE))),
+    "CSV records no level order",
+    class = "rtemis_type_error"
+  )
+  expect_error(
+    write(data.frame(t = as.POSIXct("2026-01-01", tz = "America/Los_Angeles"))),
+    "CSV records date-times in UTC",
+    class = "rtemis_type_error"
+  )
+  expect_error(
+    write(data.frame(t = as.POSIXct("2026-01-01"))),
+    'time zone ""',
+    class = "rtemis_type_error"
+  )
+  skip_if_not_installed("bit64")
+  expect_error(
+    write(data.frame(i = bit64::as.integer64(1)), version = "1.0"),
+    "cr:Int64 is defined in Croissant 1.1",
+    class = "rtemis_value_error"
+  )
 })
 
 test_that("data types follow column classes", {

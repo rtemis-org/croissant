@@ -21,7 +21,7 @@
   Int8 = "integer",
   Int16 = "integer",
   Int32 = "integer",
-  Int64 = "double",
+  Int64 = "integer64",
   UInt8 = "integer",
   UInt16 = "integer",
   UInt32 = "double",
@@ -77,13 +77,18 @@ is_text_type <- function(f) {
 #' @param repeated Logical: Whether each value is a list of values.
 #'
 #' @return Atomic vector, or a list when the field is repeated or a value is
-#' itself a list.
+#' itself a list. A factor of a text field is returned as is.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 cast_values <- function(values, f, repeated = FALSE) {
   type <- field_cast(f)
+  # A text column that the file stores as categorical, such as a
+  # dictionary-encoded Parquet column, stays a factor with the file's levels.
+  if (is.factor(values) && identical(type, "character")) {
+    return(values)
+  }
   # Image, audio, and video bytes, as Parquet files hold them, stay raw
   # vectors, one per record.
   if (is.list(values) && any(vapply(values, is.raw, logical(1L)))) {
@@ -183,6 +188,10 @@ cast_atomic <- function(x, type) {
       }
     },
     double = suppressWarnings(as.numeric(x)),
+    integer64 = {
+      check_dependencies("bit64")
+      if (inherits(x, "integer64")) x else bit64::as.integer64(as.character(x))
+    },
     # mlcroissant reads both sc:Date and sc:DateTime as pandas Timestamps,
     # which keep a time of day. A sc:Date value with a time is read as
     # POSIXct, so the time is kept.
@@ -194,16 +203,25 @@ cast_atomic <- function(x, type) {
         cast_atomic(s, "POSIXct")
       }
     },
-    POSIXct = as.POSIXct(
-      as.character(x),
-      tz = "UTC",
-      tryFormats = c(
-        "%Y-%m-%dT%H:%M:%OSZ",
-        "%Y-%m-%dT%H:%M:%OS",
-        "%Y-%m-%d %H:%M:%OS",
-        "%Y-%m-%d"
+    # A date-time the file stores as one keeps its time zone; text is UTC.
+    POSIXct = if (inherits(x, "POSIXct")) {
+      # No time zone and "" both mean the session's time zone; R writes "".
+      if (is.null(attr(x, "tzone"))) {
+        attr(x, "tzone") <- ""
+      }
+      x
+    } else {
+      as.POSIXct(
+        as.character(x),
+        tz = "UTC",
+        tryFormats = c(
+          "%Y-%m-%dT%H:%M:%OSZ",
+          "%Y-%m-%dT%H:%M:%OS",
+          "%Y-%m-%d %H:%M:%OS",
+          "%Y-%m-%d"
+        )
       )
-    ),
+    },
     box = lapply(as.character(x), function(v) {
       if (is.na(v)) {
         return(NULL)

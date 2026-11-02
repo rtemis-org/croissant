@@ -62,7 +62,8 @@ A text field that \code{references} a field of an enumeration record set (data
 type \code{sc:Enumeration}) is a factor whose levels are the enumeration's
 values in record order, as \code{\link[=croissant_from_data]{croissant_from_data()}} writes a factor. A
 column holding a value outside the enumeration stays character, with a
-warning.
+warning. Any other text field that the file stores as categorical, such as
+a dictionary-encoded Parquet column, is a factor with the file's levels.
 
 Files with an \code{http(s)} \code{contentUrl} are downloaded into \code{cache_dir}, and
 their \code{sha256} or \code{md5} is verified. Files of a Hugging Face dataset
@@ -77,10 +78,14 @@ the \code{content} of an image, audio, or video file holds the file's local
 path; with a text data type it holds the file's text.
 
 Values are cast by the field's first data type with an R counterpart:
-\code{sc:Integer} to integer, \code{sc:Float} and \code{sc:Number} to double,
-\code{sc:Boolean} to logical, \code{sc:Date} to Date, \code{sc:DateTime} to POSIXct
-(UTC), and \code{sc:Text} and \code{sc:URL} to character. A repeated field, or one
-split by a \code{separator} transform, is a list column.
+\code{sc:Integer} to integer, \code{cr:Int64} to integer64 (requires the 'bit64'
+package), \code{sc:Float} and \code{sc:Number} to double, \code{sc:Boolean} to logical,
+\code{sc:Date} to Date, \code{sc:DateTime} to POSIXct, and \code{sc:Text} and \code{sc:URL} to
+character. A date-time the file stores as one, as Parquet does, keeps its
+time zone; a date-time read from text is in UTC. A factor keeps its
+\code{ordered} flag. A repeated field, or one split by a \code{separator} transform,
+is a list column. Each column \code{\link[=croissant_from_data]{croissant_from_data()}} writes reads back
+with the class it was written with.
 }
 \examples{
 dir <- tempfile()
