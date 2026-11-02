@@ -765,14 +765,20 @@ read_content <- function(path, formats, columns = NULL) {
 # %% read_parquet_columns ----
 #' Read named columns of a Parquet file
 #'
-#' Reads as `arrow::read_parquet()` does with `col_select`, through the file's
-#' reader, so that only the named columns are read and converted.
+#' Reads only the named columns of a Parquet file, through the file's reader.
+#' `ReadTable()` selects physical (leaf) columns, and a nested field such as a
+#' struct spans one leaf column per scalar member, so the schema position of a
+#' field is its leaf position only when every field is a single leaf column. A
+#' file with a field of several leaf columns returns `NULL`, and the caller
+#' reads it in full. `arrow::read_parquet()` with `col_select` passes schema
+#' positions as leaf positions as well (arrow 26.0.0).
 #'
 #' @param path Character: Local file path.
 #' @param columns Character: Column names.
 #'
 #' @return data.frame with the columns in the order of `columns`, or `NULL`
-#' when the file lacks one of them or cannot be read this way.
+#' when the file lacks one of them, has a field of several leaf columns, or
+#' cannot be read this way.
 #'
 #' @author EDG
 #' @keywords internal
@@ -783,11 +789,16 @@ read_parquet_columns <- function(path, columns) {
       file <- arrow::mmap_open(path)
       on.exit(file[["close"]](), add = TRUE)
       reader <- arrow::ParquetFileReader[["create"]](file)
-      at <- match(columns, names(reader[["GetSchema"]]()))
-      if (anyNA(at)) {
+      fields <- names(reader[["GetSchema"]]())
+      at <- match(columns, fields)
+      if (anyNA(at) || reader[["num_columns"]] != length(fields)) {
         return(NULL)
       }
-      as.data.frame(reader[["ReadTable"]](at - 1L))
+      table <- reader[["ReadTable"]](at - 1L)
+      if (!identical(names(table), columns)) {
+        return(NULL)
+      }
+      as.data.frame(table)
     },
     error = function(e) NULL
   )

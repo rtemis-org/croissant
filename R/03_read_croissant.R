@@ -322,7 +322,10 @@ node_from_list <- function(x, class_name, log, node) {
 #' each assignment, which runs only class validators: a node class that
 #' defines one must be validated here as well. When a check fails,
 #' `set_props()` sets every value and validates the node, as the constructor
-#' does, and raises its error.
+#' does, and raises its error. Each set property is stored as an attribute
+#' after the existing ones, so the attributes are then put in the
+#' constructor's order (`attribute_order()`), and the node is `identical()`
+#' to the constructor's with `attrib.as.set = FALSE`.
 #'
 #' @param class_name Character: Node class name, a name in `.node_terms`.
 #' @param args Named list: Property values.
@@ -343,7 +346,14 @@ new_node <- function(class_name, args) {
     valid_implicitly(node_prototype(class_name), set_args),
     error = function(e) NULL
   )
-  out %||% do.call(set_props, c(list(node_prototype(class_name)), args))
+  out <- out %||%
+    do.call(set_props, c(list(node_prototype(class_name)), args))
+  attrs <- attributes(out)
+  at <- match(names(attrs), attribute_order(class_name))
+  if (is.unsorted(at, na.rm = TRUE)) {
+    attributes(out) <- attrs[order(!is.na(at), at)]
+  }
+  out
 } # /croissant::new_node
 
 
@@ -366,6 +376,37 @@ node_prototype <- function(class_name) {
   .prototypes[[class_name]] %||%
     (.prototypes[[class_name]] <- node_class(class_name)())
 } # /croissant::node_prototype
+
+
+# Property attribute order of each class, by class name, filled by
+# `attribute_order()`.
+.attribute_orders <- new.env(parent = emptyenv())
+
+
+# %% attribute_order ----
+#' Order of the property attributes the class constructor sets
+#'
+#' `S7::new_object()` stores the properties without a setter first and then
+#' sets the properties with a setter, each group in the order of the class
+#' properties. The S7 attributes that are not properties (`class` and the
+#' class reference) precede them. Every property name of a node class is
+#' stored under its own name.
+#'
+#' @param class_name Character: Node class name, a name in `.node_terms`.
+#'
+#' @return Character: Property names in attribute order.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+attribute_order <- function(class_name) {
+  .attribute_orders[[class_name]] %||%
+    (.attribute_orders[[class_name]] <- {
+      props <- node_class(class_name)@properties
+      setter <- vapply(props, \(p) is.function(p[["setter"]]), logical(1L))
+      c(names(props)[!setter], names(props)[setter])
+    })
+} # /croissant::attribute_order
 
 
 # %% read_value ----

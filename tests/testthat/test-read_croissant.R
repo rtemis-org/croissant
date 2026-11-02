@@ -257,10 +257,39 @@ test_that("a node is built as its constructor builds it", {
     data_type = "sc:Float",
     source = Source(file_object = "f.csv", extract = Extract(column = "x"))
   )
-  expect_identical(new_node("Field", args), do.call(Field, args))
-  expect_identical(new_node("Field", list()), Field())
+  # The attributes are in the constructor's order.
+  same <- function(x, y) identical(x, y, attrib.as.set = FALSE)
+  expect_true(same(new_node("Field", args), do.call(Field, args)))
+  expect_true(same(new_node("Field", list()), Field()))
   nodes <- list(record_set = list(RecordSet(id = "a"), RecordSet(id = "b")))
-  expect_identical(new_node("Croissant", nodes), do.call(Croissant, nodes))
+  expect_true(same(new_node("Croissant", nodes), do.call(Croissant, nodes)))
+  # Read order: typed properties, a setter property before a later property
+  # without a setter, and extension properties last.
+  nodes <- list(
+    name = "d",
+    distribution = list(FileObject(id = "f", content_url = "f.csv")),
+    data_biases = "none known",
+    other_properties = list(`https://example.org/extra` = "retained")
+  )
+  expect_true(same(new_node("Croissant", nodes), do.call(Croissant, nodes)))
+  # Every node of a read document, with RAI and extension properties.
+  # read_croissant() sets `base` after construction, so it is set to NULL
+  # before the comparison.
+  rebuild <- function(x) {
+    if (S7::S7_inherits(x)) {
+      do.call(S7::S7_class(x), lapply(S7::props(x), rebuild))
+    } else if (is.list(x) && !is.object(x)) {
+      lapply(x, rebuild)
+    } else {
+      x
+    }
+  }
+  x <- read_croissant(
+    test_path("fixtures", "1.0", "bigcode-the-stack.json"),
+    verbosity = 0L
+  )
+  x@base <- NULL
+  expect_true(same(x, rebuild(x)))
   error_of <- function(expr) tryCatch(expr, error = conditionMessage)
   expect_identical(
     error_of(new_node("Field", list(id = "x", name = character()))),

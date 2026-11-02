@@ -340,3 +340,61 @@ test_that("a missing record set is named with the record sets there are", {
     paste0(paste(letters[1:10], collapse = ", "), ", and 2 more")
   )
 })
+
+test_that("a struct column of a Parquet file reads with every member", {
+  skip_if_not_installed("arrow")
+  local_options(croissant.cache_dir = local_tempdir())
+  path <- file.path(local_tempdir(), "nested.parquet")
+  arrow::write_parquet(
+    arrow::Table[["create"]](
+      nested = data.frame(a = c(1L, 2L), b = c("a", "b")),
+      target = c(11L, 22L),
+      tail = c(101L, 202L)
+    ),
+    path
+  )
+  field <- function(id, column, json_path = NULL) {
+    Field(
+      id = paste0("r/", id),
+      data_type = if (is.null(json_path)) "sc:Integer" else "sc:Text",
+      source = Source(
+        file_object = "f",
+        extract = Extract(column = column),
+        transform = if (!is.null(json_path)) {
+          list(Transform(json_path = json_path))
+        }
+      )
+    )
+  }
+  dataset <- function(...) {
+    Croissant(
+      name = "nested",
+      distribution = list(FileObject(
+        id = "f",
+        content_url = path,
+        encoding_format = "application/vnd.apache.parquet",
+        sha256 = sha256_file(path)
+      )),
+      record_set = list(RecordSet(id = "r", field = list(...)))
+    )
+  }
+  read <- function(x) {
+    read_record_set(x, "r", output = "data.frame", verbosity = 0L)
+  }
+  # The second member of a struct, selected by a jsonPath transform.
+  expect_identical(read(dataset(field("b", "nested", "$.b")))$b, c("a", "b"))
+  # Scalar columns after a struct.
+  expect_identical(
+    read(dataset(field("target", "target"), field("tail", "tail"))),
+    data.frame(target = c(11L, 22L), tail = c(101L, 202L))
+  )
+  # A file with a struct column reads in full; a flat file reads the named
+  # columns, in the order named.
+  expect_null(read_parquet_columns(path, c("nested", "tail")))
+  flat <- file.path(local_tempdir(), "flat.parquet")
+  arrow::write_parquet(data.frame(x = 1:2, y = 3:4, z = 5:6), flat)
+  expect_identical(
+    read_parquet_columns(flat, c("z", "x")),
+    as.data.frame(arrow::read_parquet(flat))[c("z", "x")]
+  )
+})
