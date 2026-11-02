@@ -26,10 +26,11 @@ Class of the result. \code{"tibble"} requires the 'tibble' package and
 \code{"arrow"} the 'arrow' package.}
 
 \item{base}{Optional Character: Directory or URL that relative
-\code{contentUrl}s and \code{FileSet} globs resolve against. When \code{x} is a path, a
-URL, or an \verb{hf://datasets/} path of a file, this defaults to its directory;
-a relative \code{contentUrl} under an \verb{hf://datasets/} directory names a file of
-that repository.}
+\code{contentUrl}s and \code{FileSet} globs resolve against. \code{NULL} uses the \code{base}
+of the \code{Croissant} object: the directory of the path, URL, or
+\verb{hf://datasets/} path of a file that \code{\link[=read_croissant]{read_croissant()}} read. A relative
+\code{contentUrl} under an \verb{hf://datasets/} directory names a file of that
+repository at the same revision.}
 
 \item{cache_dir}{Character: Directory for downloaded and extracted files.}
 

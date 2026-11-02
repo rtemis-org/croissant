@@ -45,11 +45,14 @@ checksum, one \code{RecordSet}, and one \code{Field} per column, whose data type
 follows the column class: integer to \code{sc:Integer}, double to \code{sc:Float},
 logical to \code{sc:Boolean}, Date to \code{sc:Date}, POSIXct to \code{sc:DateTime}, and
 character and factor to \code{sc:Text}. Write the metadata with
-\code{\link[=write_croissant]{write_croissant()}} into the directory of \code{file}, where \code{content_url}
-resolves.
+\code{\link[=write_croissant]{write_croissant()}} into the directory where \code{content_url} resolves to
+\code{file}. That directory is the \code{base} of the returned object, so
+\code{\link[=read_record_set]{read_record_set()}} reads the object's records before it is written.
 }
 \details{
-A factor is written as its labels. Its levels, in order, form an
+A factor is written as its labels in CSV, and as a dictionary-encoded
+column with its levels, in order, in Parquet, which Parquet readers return
+as a factor or categorical column. Its levels, in order, also form an
 enumeration record set, \verb{<record_set>_<column>_levels}, with data type
 \code{sc:Enumeration}, one field \code{label}, and the levels as inline records; the
 factor's field \code{references} that field, so \code{\link[=read_record_set]{read_record_set()}} returns the

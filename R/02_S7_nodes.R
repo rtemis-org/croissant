@@ -634,6 +634,11 @@ FileSet <- new_class(
 #' @param other_properties Optional List: Properties without a typed
 #' counterpart, keyed by canonical JSON-LD key, with their parsed JSON values,
 #' such as the `prov:` properties.
+#' @param base Optional Character: Directory or URL that relative
+#' `contentUrl`s resolve against: the location of the document
+#' [read_croissant()] read, or the directory [croissant_from_data()] wrote the
+#' data file to. [read_record_set()] uses it when its `base` is `NULL`. It is
+#' not a Croissant property, and [write_croissant()] does not write it.
 #'
 #' @return `Croissant` object.
 #'
@@ -691,7 +696,8 @@ Croissant <- new_class(
     data_social_impact = optional_strings,
     personal_sensitive_information = optional_strings,
     data_release_maintenance_plan = optional_strings,
-    other_properties = optional_other
+    other_properties = optional_other,
+    base = optional_string
   )
 ) # /croissant::Croissant
 

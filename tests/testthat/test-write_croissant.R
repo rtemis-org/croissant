@@ -20,7 +20,7 @@ test_that("write then read returns an equal object", {
     x <- suppressWarnings(read_croissant(path, verbosity = 0L))
     file <- tempfile(fileext = ".json")
     write_croissant(x, file)
-    expect_equal(read_croissant(file, verbosity = 0L), x)
+    expect_equal(unlocated(read_croissant(file, verbosity = 0L)), unlocated(x))
     unlink(file)
   }
 })

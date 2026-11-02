@@ -8,10 +8,12 @@
 - `croissant_context()` returns the standard JSON-LD context of a Croissant version.
 - `validate_croissant()` reports every error and warning in Croissant metadata as a `CroissantIssues` object; `is_valid()` tests it for errors, and `issues()` returns its issues, or those of a `read_croissant()` error, as a table, optionally of one severity.
 - `read_croissant()` reports every read problem of a document in one error.
+- `read_croissant()` and `croissant_from_data()` record in `base` the directory that relative `contentUrl`s resolve against, so `read_record_set()` reads the records of an object read from a file, URL, or Hugging Face path without `base`.
 - `read_record_set()` reads the records of a record set as a data.table, tibble, data.frame, or arrow Table, from CSV, TSV, JSON, JSON Lines, and Parquet files, local or remote, including files in zip and tar archives; each column is named by its field `@id` without the record set's `@id` and `/`.
-- `croissant_from_data()` writes a table to a CSV or Parquet file and returns Croissant metadata that describes it, with field data types from column classes and the file's SHA-256 checksum; a factor's levels, in order, form an enumeration record set that its field references.
+- `croissant_from_data()` writes a table to a CSV or Parquet file and returns Croissant metadata that describes it, with field data types from column classes and the file's SHA-256 checksum; a factor's levels, in order, form an enumeration record set that its field references, and a Parquet file keeps the factor as a dictionary-encoded column with its levels.
 - `read_record_set()` returns a text field that references an enumeration record set as a factor whose levels follow the enumeration's record order.
 - `read_croissant_hf()` reads the Croissant metadata of a Hugging Face dataset, and `read_croissant()` and `read_record_set()` accept `hf://datasets/` paths; `read_record_set()` downloads the dataset's Parquet files from the resolved commit and verifies them.
+- `read_croissant_hf()` reports a dataset whose Croissant metadata the Hub has not generated yet, and names the repository's own `croissant.json` when it has one.
 - `hf_download()` downloads and verifies one file of a Hugging Face dataset.
 - `read_record_set()` gains `n_max`, which stops reading files once that many records are held, and `token`, for gated and private Hugging Face datasets.
 - `read_croissant()`, `read_croissant_hf()`, and `read_record_set()` take `verbosity`; at `1L`, the default, each reports what it reads and then a summary: the dataset name with counts of record sets, enumerations, and files, or the rows and columns read, with the elapsed time and whether `n_max` was reached.

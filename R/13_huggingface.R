@@ -242,6 +242,66 @@ hf_json <- function(url, token, what) {
 } # /croissant::hf_json
 
 
+# %% hf_croissant ----
+#' Croissant metadata the Hub generates for a dataset
+#'
+#' Until its dataset viewer has processed a dataset, and for a dataset the
+#' viewer cannot read, the Hub's Croissant endpoint returns a schema.org
+#' `Dataset` without `conformsTo` or `recordSet`. That response is an error
+#' that names the repository's own Croissant files, when it has any.
+#'
+#' @param repo Character: `<owner>/<name>`.
+#' @param token Character: Token, or `""`.
+#'
+#' @return List: The parsed JSON-LD document.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+hf_croissant <- function(repo, token) {
+  doc <- hf_json(
+    paste0(hf_endpoint(), "/api/datasets/", repo, "/croissant"),
+    token,
+    paste0("Croissant metadata for `", repo, "`")
+  )
+  if (!is.null(doc[["recordSet"]]) || !is.null(doc[["conformsTo"]])) {
+    return(doc)
+  }
+  own <- tryCatch(
+    {
+      files <- hf_revision(repo, "main", token)[["files"]][["rfilename"]]
+      files[grepl("(^|/)croissant\\.json$", files)]
+    },
+    error = function(e) character()
+  )
+  abort(
+    "The Hugging Face Hub has no Croissant metadata for `",
+    repo,
+    "` yet: it returned a schema.org description without record sets. ",
+    "The Hub generates Croissant metadata after its dataset viewer has ",
+    "processed the dataset, a few minutes after an upload, and only for ",
+    "datasets the viewer can read (",
+    hf_endpoint(),
+    "/datasets/",
+    repo,
+    "). ",
+    if (length(own) > 0L) {
+      paste0(
+        "The repository holds its own Croissant metadata; read it with ",
+        "read_croissant(\"hf://datasets/",
+        repo,
+        "/",
+        own[[1L]],
+        "\")."
+      )
+    } else {
+      "Retry when the dataset viewer shows the data."
+    },
+    class = c("croissant_hf_metadata_error", "rtemis_input_error")
+  )
+} # /croissant::hf_croissant
+
+
 # %% hf_revision ----
 #' Resolve a dataset revision to a commit and its files
 #'
@@ -506,7 +566,7 @@ hf_data_files <- function(files) {
 #' @examplesIf interactive()
 #' cache_dir <- tempfile()
 #' path <- hf_download(
-#'   "hf://datasets/ylecun/mnist@refs%2Fconvert%2Fparquet/mnist/test/0000.parquet",
+#'   "hf://datasets/rtemis/demo@v1.0.0/data/classification.parquet",
 #'   cache_dir = cache_dir
 #' )
 #' attr(path, "hf")
@@ -576,6 +636,11 @@ hf_download <- function(
 #' which downloads the Parquet files they name from the dataset's
 #' `refs/convert/parquet` branch.
 #'
+#' The Hub generates the metadata after its dataset viewer has processed the
+#' dataset, a few minutes after an upload, and only for datasets the viewer
+#' can read. Before then, the error has class `croissant_hf_metadata_error`
+#' and names the repository's own `croissant.json` files, when it has any.
+#'
 #' @param repo Character: Dataset, as `<owner>/<name>` or
 #' `hf://datasets/<owner>/<name>`.
 #' @param token Optional Character: Hugging Face token, needed for gated and
@@ -590,10 +655,10 @@ hf_download <- function(
 #' @export
 #'
 #' @examplesIf interactive()
-#' x <- read_croissant_hf("ylecun/mnist")
+#' x <- read_croissant_hf("rtemis/demo")
 #' x
 #' cache_dir <- tempfile()
-#' head(read_record_set(x, "mnist", n_max = 5L, cache_dir = cache_dir))
+#' head(read_record_set(x, "classification", n_max = 5L, cache_dir = cache_dir))
 #' unlink(cache_dir, recursive = TRUE)
 read_croissant_hf <- function(repo, token = NULL, verbosity = 1L) {
   check_character_scalar(repo)
@@ -616,11 +681,7 @@ read_croissant_hf <- function(repo, token = NULL, verbosity = 1L) {
     "...",
     verbosity = verbosity
   )
-  doc <- hf_json(
-    paste0(hf_endpoint(), "/api/datasets/", repo, "/croissant"),
-    hf_token(token),
-    paste0("Croissant metadata for `", repo, "`")
-  )
+  doc <- hf_croissant(repo, hf_token(token))
   out <- read_croissant(to_json_text(doc, pretty = FALSE), verbosity = 0L)
   msg0(
     "Read ",

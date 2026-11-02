@@ -41,6 +41,16 @@
 #' }'
 #' x <- read_croissant(json)
 #' x
+#'
+#' @examplesIf interactive()
+#' # The metadata file of a Hugging Face dataset, at tag v1.0.0
+#' path <- "hf://datasets/rtemis/demo@v1.0.0/croissant.json"
+#' x <- read_croissant(path)
+#' names(record_sets(x))
+#' cache_dir <- tempfile()
+#' dat <- read_record_set(path, "classification", cache_dir = cache_dir)
+#' levels(dat[["class"]])
+#' unlink(cache_dir, recursive = TRUE)
 read_croissant <- function(x, verbosity = 1L) {
   check_character_scalar(x)
   msg0(
@@ -52,6 +62,7 @@ read_croissant <- function(x, verbosity = 1L) {
   )
   log <- new_issue_log()
   out <- read_document(x, log)
+  out@base <- document_base(x)
   errors <- log_errors(log)
   if (length(errors) > 0L) {
     abort(
@@ -111,6 +122,34 @@ input_label <- function(x) {
     basename(x)
   }
 } # /croissant::input_label
+
+
+# %% document_base ----
+#' Directory or URL that the relative `contentUrl`s of a document resolve
+#' against
+#'
+#' @param x Character: Path, URL, JSON string, or `hf://datasets/` path.
+#'
+#' @return Character scalar: The directory of a local path, of a URL, or of an
+#' `hf://datasets/` path of a file, with its revision; `NULL` for a JSON
+#' string and for an `hf://datasets/` path of a dataset, whose Hub-generated
+#' metadata names its files by absolute URL.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+document_base <- function(x) {
+  if (grepl("^\\s*\\{", x)) {
+    return(NULL)
+  }
+  if (is_hf(x)) {
+    if (is.null(parse_hf(x)[["file"]])) NULL else sub("/[^/]*$", "", x)
+  } else if (grepl("^https?://", x)) {
+    sub("/[^/]*$", "", x)
+  } else {
+    dirname(normalizePath(x))
+  }
+} # /croissant::document_base
 
 
 # %% croissant_counts ----

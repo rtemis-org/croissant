@@ -45,7 +45,7 @@ A gated or private dataset requires a token with access, read from
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 cache_dir <- tempfile()
 path <- hf_download(
-  "hf://datasets/ylecun/mnist@refs\%2Fconvert\%2Fparquet/mnist/test/0000.parquet",
+  "hf://datasets/rtemis/demo@v1.0.0/data/classification.parquet",
   cache_dir = cache_dir
 )
 attr(path, "hf")

@@ -46,7 +46,8 @@ Croissant(
   data_social_impact = NULL,
   personal_sensitive_information = NULL,
   data_release_maintenance_plan = NULL,
-  other_properties = NULL
+  other_properties = NULL,
+  base = NULL
 )
 }
 \arguments{
@@ -116,6 +117,12 @@ that \verb{x@record_set$<id>} selects one.}
 \item{other_properties}{Optional List: Properties without a typed
 counterpart, keyed by canonical JSON-LD key, with their parsed JSON values,
 such as the \verb{prov:} properties.}
+
+\item{base}{Optional Character: Directory or URL that relative
+\code{contentUrl}s resolve against: the location of the document
+\code{\link[=read_croissant]{read_croissant()}} read, or the directory \code{\link[=croissant_from_data]{croissant_from_data()}} wrote the
+data file to. \code{\link[=read_record_set]{read_record_set()}} uses it when its \code{base} is \code{NULL}. It is
+not a Croissant property, and \code{\link[=write_croissant]{write_croissant()}} does not write it.}
 }
 \value{
 \code{Croissant} object.

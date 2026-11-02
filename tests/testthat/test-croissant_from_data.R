@@ -104,6 +104,22 @@ test_that("a factor's levels form an enumeration record set", {
   expect_identical(levels(y[["f"]]), c("v", "u", "w"))
 })
 
+test_that("Parquet keeps a factor with its levels in order; CSV its labels", {
+  skip_if_not_installed("arrow")
+  x <- data.frame(f = factor(c("u", "v", "u"), levels = c("v", "u", "w")))
+  dir <- local_tempdir()
+  croissant_from_data(
+    x,
+    file.path(dir, "d.parquet"),
+    name = "t",
+    format = "parquet"
+  )
+  y <- arrow::read_parquet(file.path(dir, "d.parquet"))
+  expect_identical(levels(y[["f"]]), c("v", "u", "w"))
+  croissant_from_data(x, file.path(dir, "d.csv"), name = "t")
+  expect_identical(readLines(file.path(dir, "d.csv")), c("f", "u", "v", "u"))
+})
+
 test_that("a value outside the enumeration keeps the column character", {
   rt <- round_trip(data.frame(f = factor(c("a", "b"))), "csv")
   m <- rt[["metadata"]]
@@ -114,6 +130,36 @@ test_that("a value outside the enumeration keeps the column character", {
     "stays character"
   )
   expect_identical(y[["f"]], c("a", "b"))
+})
+
+test_that("the object reads its records from the directory of its data file", {
+  dir <- local_tempdir()
+  x <- data.frame(a = 1:3, f = factor(c("u", "v", "u")))
+  m <- croissant_from_data(
+    x,
+    file.path(dir, "data", "t.csv"),
+    name = "t",
+    content_url = "data/t.csv"
+  )
+  expect_identical(m@base, normalizePath(dir, winslash = "/"))
+  y <- read_record_set(m, "default", output = "data.frame", verbosity = 0L)
+  expect_equal(y, x, ignore_attr = TRUE)
+  expect_null(
+    croissant_from_data(
+      x,
+      file.path(dir, "u.csv"),
+      name = "u",
+      content_url = "elsewhere/u.csv"
+    )@base
+  )
+  expect_null(
+    croissant_from_data(
+      x,
+      file.path(dir, "v.csv"),
+      name = "v",
+      content_url = "https://example.org/v.csv"
+    )@base
+  )
 })
 
 test_that("the FileObject records the file's size and sha256", {

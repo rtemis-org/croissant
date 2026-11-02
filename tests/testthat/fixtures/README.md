@@ -3,7 +3,9 @@
 The files in `0.8/`, `1.0/`, and `1.1/` are the example metadata files from
 `datasets/<version>/<name>/metadata.json` in
 [mlcommons/croissant](https://github.com/mlcommons/croissant) at commit
-`ec24358`, each renamed to `<name>.json`. `1.1-multilingual.json` is
+`ec24358`, each renamed to `<name>.json`, except the MNIST documents
+`1.0/huggingface-mnist`, `1.1/huggingface-mnist-from-main-branch`, and
+`1.0/huggingface-prism-alignment`, whose content is the MNIST document. `1.1-multilingual.json` is
 `python/mlcroissant/mlcroissant/_src/tests/graphs/1.1/multilingual_fields/metadata.json`
 from the same commit.
 

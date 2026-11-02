@@ -4,18 +4,22 @@
 
 test_that("hf:// paths parse as rtemis parses them", {
   expect_identical(
-    parse_hf("hf://datasets/ylecun/mnist"),
-    list(repo = "ylecun/mnist", revision = "main", file = NULL)
+    parse_hf("hf://datasets/rtemis/demo"),
+    list(repo = "rtemis/demo", revision = "main", file = NULL)
+  )
+  expect_identical(
+    parse_hf("hf://datasets/rtemis/demo@v1.0.0/data/classification.parquet"),
+    list(
+      repo = "rtemis/demo",
+      revision = "v1.0.0",
+      file = "data/classification.parquet"
+    )
   )
   expect_identical(
     parse_hf(
-      "hf://datasets/ylecun/mnist@refs%2Fconvert%2Fparquet/mnist/test/0000.parquet"
-    ),
-    list(
-      repo = "ylecun/mnist",
-      revision = "refs/convert/parquet",
-      file = "mnist/test/0000.parquet"
-    )
+      "hf://datasets/rtemis/demo@refs%2Fconvert%2Fparquet/classification/train/0000.parquet"
+    )[["revision"]],
+    "refs/convert/parquet"
   )
   expect_error(parse_hf("hf://models/x/y"), class = "rtemis_value_error")
   expect_error(parse_hf("hf://datasets/x/y/../z"), class = "rtemis_value_error")
@@ -27,13 +31,13 @@ test_that("Hub repository URLs in Croissant metadata resolve to repo and revisio
   local_envvar(HF_ENDPOINT = NA)
   expect_identical(
     hf_repo_url(
-      "https://huggingface.co/datasets/ylecun/mnist/tree/refs%2Fconvert%2Fparquet"
+      "https://huggingface.co/datasets/rtemis/demo/tree/refs%2Fconvert%2Fparquet"
     ),
-    list(repo = "ylecun/mnist", revision = "refs/convert/parquet")
+    list(repo = "rtemis/demo", revision = "refs/convert/parquet")
   )
   expect_identical(
-    hf_repo_url("https://huggingface.co/datasets/ylecun/mnist/"),
-    list(repo = "ylecun/mnist", revision = "main")
+    hf_repo_url("https://huggingface.co/datasets/rtemis/demo/"),
+    list(repo = "rtemis/demo", revision = "main")
   )
   expect_null(hf_repo_url("https://example.org/datasets/a/b"))
   local_envvar(HF_ENDPOINT = "ftp://hub")
@@ -69,25 +73,89 @@ test_that("a token is read from HF_TOKEN", {
   expect_identical(hf_token(), "")
 })
 
-test_that("Hub metadata and records read from the Hugging Face Hub", {
+test_that("the metadata file of rtemis/demo reads factors from the Hub", {
   skip_on_cran()
   skip_if_offline("huggingface.co")
   local_options(croissant.cache_dir = local_tempdir())
   local_envvar(HF_ENDPOINT = NA)
-  x <- read_croissant_hf("ylecun/mnist", verbosity = 0L)
-  expect_true(is_valid(validate_croissant(x)))
-  tab <- read_record_set(x, "mnist", n_max = 5L, verbosity = 0L)
-  expect_identical(nrow(tab), 5L)
-  expect_identical(tab[["label"]], c(7L, 2L, 1L, 0L, 4L))
-  expect_identical(unique(tab[["split"]]), "test")
-  expect_type(tab[["image"]][[1L]], "raw")
-  path <- hf_download(
-    "hf://datasets/ylecun/mnist@refs%2Fconvert%2Fparquet/mnist/test/0000.parquet",
+  path <- "hf://datasets/rtemis/demo@v1.0.0/croissant.json"
+  x <- read_croissant(path, verbosity = 0L)
+  expect_identical(nrow(issues(validate_croissant(x))), 0L)
+  expect_identical(names(record_sets(x)), c("regression", "classification"))
+  expect_length(enumerations(x), 11L)
+  tab <- read_record_set(path, "classification", verbosity = 0L)
+  expect_identical(dim(tab), c(1000L, 101L))
+  expect_identical(levels(tab[["class"]]), c("no", "yes"))
+  expect_identical(levels(tab[["x39"]]), c("A", "B", "C", "D", "E"))
+  file <- hf_download(
+    "hf://datasets/rtemis/demo@v1.0.0/data/classification.parquet",
     verbosity = 0L
   )
-  expect_true(file.exists(path))
+  expect_true(file.exists(file))
+  expect_identical(
+    attr(file, "hf"),
+    paste0(
+      "hf://datasets/rtemis/demo@53a1ec8877d38aa522f243ff03e1becc027ed6c0/",
+      "data/classification.parquet"
+    )
+  )
+})
+
+test_that("Hub-generated metadata of rtemis/demo reads its records", {
+  skip_on_cran()
+  skip_if_offline("huggingface.co")
+  local_options(croissant.cache_dir = local_tempdir())
+  local_envvar(HF_ENDPOINT = NA)
+  x <- read_croissant_hf("rtemis/demo", verbosity = 0L)
+  expect_true(is_valid(validate_croissant(x)))
+  expect_setequal(names(record_sets(x)), c("regression", "classification"))
+  expect_setequal(
+    names(enumerations(x)),
+    c("regression_splits", "classification_splits")
+  )
+  tab <- read_record_set(x, "classification", n_max = 5L, verbosity = 0L)
+  expect_identical(nrow(tab), 5L)
+  expect_identical(names(tab)[c(1L, 2L, 102L)], c("split", "x1", "class"))
+  expect_identical(tab[["class"]], c("yes", "no", "yes", "yes", "no"))
+  expect_identical(unique(tab[["split"]]), "train")
+  path <- hf_download(
+    "hf://datasets/rtemis/demo@refs%2Fconvert%2Fparquet/classification/train/0000.parquet",
+    verbosity = 0L
+  )
   expect_match(
     attr(path, "hf"),
-    "^hf://datasets/ylecun/mnist@[0-9a-f]{40}/mnist/test/0000.parquet$"
+    "^hf://datasets/rtemis/demo@[0-9a-f]{40}/classification/train/0000.parquet$"
+  )
+})
+
+test_that("a Hub response without Croissant metadata names the repo's own file", {
+  stub <- list(
+    `@context` = "https://schema.org",
+    `@type` = "Dataset",
+    name = "demo"
+  )
+  local_mocked_bindings(
+    hf_json = function(url, token, what) stub,
+    hf_revision = function(repo, revision, token) {
+      list(files = data.frame(rfilename = c("README.md", "croissant.json")))
+    }
+  )
+  expect_error(
+    read_croissant_hf("rtemis/demo", verbosity = 0L),
+    'read_croissant\\("hf://datasets/rtemis/demo/croissant.json"\\)',
+    class = "croissant_hf_metadata_error"
+  )
+  expect_error(
+    read_croissant("hf://datasets/rtemis/demo", verbosity = 0L),
+    "has no Croissant metadata for `rtemis/demo` yet",
+    class = "croissant_hf_metadata_error"
+  )
+  local_mocked_bindings(
+    hf_revision = function(repo, revision, token) stop("offline")
+  )
+  expect_error(
+    read_croissant_hf("rtemis/demo", verbosity = 0L),
+    "Retry when the dataset viewer shows the data",
+    class = "croissant_hf_metadata_error"
   )
 })

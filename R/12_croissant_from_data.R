@@ -27,10 +27,13 @@
 #' follows the column class: integer to `sc:Integer`, double to `sc:Float`,
 #' logical to `sc:Boolean`, Date to `sc:Date`, POSIXct to `sc:DateTime`, and
 #' character and factor to `sc:Text`. Write the metadata with
-#' [write_croissant()] into the directory of `file`, where `content_url`
-#' resolves.
+#' [write_croissant()] into the directory where `content_url` resolves to
+#' `file`. That directory is the `base` of the returned object, so
+#' [read_record_set()] reads the object's records before it is written.
 #'
-#' A factor is written as its labels. Its levels, in order, form an
+#' A factor is written as its labels in CSV, and as a dictionary-encoded
+#' column with its levels, in order, in Parquet, which Parquet readers return
+#' as a factor or categorical column. Its levels, in order, also form an
 #' enumeration record set, `<record_set>_<column>_levels`, with data type
 #' `sc:Enumeration`, one field `label`, and the levels as inline records; the
 #' factor's field `references` that field, so [read_record_set()] returns the
@@ -105,11 +108,11 @@ croissant_from_data <- function(
     character(1L)
   )
   data <- as.data.frame(x)
-  for (col in names(data)[vapply(data, is.factor, logical(1L))]) {
-    data[[col]] <- as.character(data[[col]])
-  }
   dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
   encoding_format <- if (format == "csv") {
+    for (col in names(data)[vapply(data, is.factor, logical(1L))]) {
+      data[[col]] <- as.character(data[[col]])
+    }
     data.table::fwrite(data, file, dateTimeAs = "write.csv", na = "")
     "text/csv"
   } else {
@@ -153,9 +156,39 @@ croissant_from_data <- function(
       list(RecordSet(id = record_set, name = record_set, field = fields)),
       enums
     ),
+    base = data_base(file, content_url),
     ...
   )
 } # /croissant::croissant_from_data
+
+
+# %% data_base ----
+#' Directory that a relative `contentUrl` resolves against
+#'
+#' @param file Character: Path of the data file written.
+#' @param content_url Character: `contentUrl` of the file.
+#'
+#' @return Character scalar: The directory `d` of which `file` is
+#' `<d>/<content_url>`, or `NULL` when `content_url` is a URL, an absolute
+#' path, or not the end of `file`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+data_base <- function(file, content_url) {
+  if (
+    grepl("^[A-Za-z][A-Za-z0-9+.-]*://", content_url) ||
+      startsWith(content_url, "/")
+  ) {
+    return(NULL)
+  }
+  path <- normalizePath(file, winslash = "/")
+  suffix <- paste0("/", sub("^(\\./)+", "", content_url))
+  if (!endsWith(path, suffix)) {
+    return(NULL)
+  }
+  substr(path, 1L, nchar(path) - nchar(suffix))
+} # /croissant::data_base
 
 
 # %% column_data_type ----

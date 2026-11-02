@@ -88,12 +88,6 @@
    "version"
   ]
  },
- "1.0/huggingface-mnist": {
-  "other_warnings": [],
-  "recommended": [
-   "datePublished"
-  ]
- },
  "1.0/huggingface-open-hermes": {
   "other_warnings": [],
   "recommended": [
@@ -109,12 +103,6 @@
    "citeAs",
    "datePublished",
    "version"
-  ]
- },
- "1.0/huggingface-prism-alignment": {
-  "other_warnings": [],
-  "recommended": [
-   "datePublished"
   ]
  },
  "1.0/huggingface-rag-dataset": {
@@ -269,12 +257,6 @@
    "datePublished",
    "license",
    "version"
-  ]
- },
- "1.1/huggingface-mnist-from-main-branch": {
-  "other_warnings": [],
-  "recommended": [
-   "datePublished"
   ]
  },
  "1.1/huggingface-pollen-robotics-apple-storage": {

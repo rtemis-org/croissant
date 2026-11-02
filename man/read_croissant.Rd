@@ -44,6 +44,17 @@ json <- '{
 }'
 x <- read_croissant(json)
 x
+
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+# The metadata file of a Hugging Face dataset, at tag v1.0.0
+path <- "hf://datasets/rtemis/demo@v1.0.0/croissant.json"
+x <- read_croissant(path)
+names(record_sets(x))
+cache_dir <- tempfile()
+dat <- read_record_set(path, "classification", cache_dir = cache_dir)
+levels(dat[["class"]])
+unlink(cache_dir, recursive = TRUE)
+\dontshow{\}) # examplesIf}
 }
 \author{
 EDG

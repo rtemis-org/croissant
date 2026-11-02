@@ -27,12 +27,18 @@ Downloads the metadata the Hub generates for a dataset
 which downloads the Parquet files they name from the dataset's
 \code{refs/convert/parquet} branch.
 }
+\details{
+The Hub generates the metadata after its dataset viewer has processed the
+dataset, a few minutes after an upload, and only for datasets the viewer
+can read. Before then, the error has class \code{croissant_hf_metadata_error}
+and names the repository's own \code{croissant.json} files, when it has any.
+}
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
-x <- read_croissant_hf("ylecun/mnist")
+x <- read_croissant_hf("rtemis/demo")
 x
 cache_dir <- tempfile()
-head(read_record_set(x, "mnist", n_max = 5L, cache_dir = cache_dir))
+head(read_record_set(x, "classification", n_max = 5L, cache_dir = cache_dir))
 unlink(cache_dir, recursive = TRUE)
 \dontshow{\}) # examplesIf}
 }

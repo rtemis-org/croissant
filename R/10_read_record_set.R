@@ -54,10 +54,11 @@
 #' Class of the result. `"tibble"` requires the 'tibble' package and
 #' `"arrow"` the 'arrow' package.
 #' @param base Optional Character: Directory or URL that relative
-#' `contentUrl`s and `FileSet` globs resolve against. When `x` is a path, a
-#' URL, or an `hf://datasets/` path of a file, this defaults to its directory;
-#' a relative `contentUrl` under an `hf://datasets/` directory names a file of
-#' that repository.
+#' `contentUrl`s and `FileSet` globs resolve against. `NULL` uses the `base`
+#' of the `Croissant` object: the directory of the path, URL, or
+#' `hf://datasets/` path of a file that [read_croissant()] read. A relative
+#' `contentUrl` under an `hf://datasets/` directory names a file of that
+#' repository at the same revision.
 #' @param cache_dir Character: Directory for downloaded and extracted files.
 #' @param n_max Numeric \[1, Inf\]: Most records to return. Files of a
 #' `FileSet` are read in order until the first origin holds `n_max` records,
@@ -132,17 +133,9 @@ read_record_set <- function(
   }
   if (!S7_inherits(x, Croissant)) {
     check_character_scalar(x)
-    if (is.null(base) && !grepl("^\\s*\\{", x)) {
-      base <- if (is_hf(x)) {
-        if (!is.null(parse_hf(x)[["file"]])) sub("/[^/]*$", "", x)
-      } else if (grepl("^https?://", x)) {
-        sub("/[^/]*$", "", x)
-      } else {
-        dirname(normalizePath(x))
-      }
-    }
     x <- read_croissant(x, verbosity = 0L)
   }
+  base <- base %||% x@base
   ctx <- new_load_context(x, base, cache_dir, verbosity, hf_token(token))
   rs <- find_record_set(x, record_set)
   start <- Sys.time()

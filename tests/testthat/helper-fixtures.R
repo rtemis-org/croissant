@@ -50,3 +50,10 @@ expanded_json <- function(txt) {
 parse_file <- function(path) {
   jsonlite::read_json(path, simplifyVector = FALSE)
 }
+
+# A Croissant object without its `base`, the location it was read from, so
+# that documents read from different places compare by content.
+unlocated <- function(x) {
+  x@base <- NULL
+  x
+}

@@ -4,7 +4,7 @@
 
 test_that("every upstream 1.0 and 1.1 example reads into a Croissant object", {
   paths <- fixture_paths()
-  expect_length(paths, 46L)
+  expect_length(paths, 43L)
   for (nm in names(paths)) {
     # huggingface-data_provenance_initiative uses equivalentProperty without
     # defining it, which read_croissant() reports as a warning.
@@ -43,7 +43,7 @@ test_that("a JSON string reads as a file does", {
   txt <- paste(readLines(path, warn = FALSE), collapse = "\n")
   expect_equal(
     read_croissant(txt, verbosity = 0L),
-    read_croissant(path, verbosity = 0L)
+    unlocated(read_croissant(path, verbosity = 0L))
   )
 })
 
@@ -138,7 +138,7 @@ test_that("a non-standard context is read through jsonld with the same result", 
   ))
   expect_equal(
     read_croissant(json, verbosity = 0L),
-    read_croissant(path, verbosity = 0L)
+    unlocated(read_croissant(path, verbosity = 0L))
   )
 })
 
@@ -224,4 +224,28 @@ test_that("verbosity 1 reports the input, then the name and counts", {
     fixed = TRUE
   )
   expect_no_message(read_croissant(path, verbosity = 0L))
+})
+
+test_that("a document read from a path or URL records its location as `base`", {
+  path <- test_path("fixtures", "1.0", "titanic.json")
+  expect_identical(
+    read_croissant(path, verbosity = 0L)@base,
+    dirname(normalizePath(path))
+  )
+  txt <- paste(readLines(path, warn = FALSE), collapse = "\n")
+  expect_null(read_croissant(txt, verbosity = 0L)@base)
+  expect_identical(
+    document_base("https://example.org/data/croissant.json"),
+    "https://example.org/data"
+  )
+  expect_identical(
+    document_base("hf://datasets/rtemis/demo@v1.0.0/croissant.json"),
+    "hf://datasets/rtemis/demo@v1.0.0"
+  )
+  expect_null(document_base("hf://datasets/rtemis/demo"))
+  json <- jsonlite::parse_json(write_croissant(read_croissant(
+    path,
+    verbosity = 0L
+  )))
+  expect_false(any(c("base", "@base") %in% names(json)))
 })

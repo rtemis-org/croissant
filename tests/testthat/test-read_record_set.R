@@ -201,6 +201,11 @@ test_that("a Croissant object reads with base, and its record set by name", {
   x <- read_croissant(file.path(dir, "metadata.json"), verbosity = 0L)
   tab <- read_record_set(x, "genders", base = dir, verbosity = 0L)
   expect_identical(tab[["label"]], c("male", "female"))
+  expect_identical(
+    read_record_set(x, "genders", verbosity = 0L),
+    tab,
+    label = "the base read_croissant() recorded"
+  )
   expect_error(
     read_record_set(x, "genders", base = tempdir(), verbosity = 0L),
     class = "croissant_file_error"

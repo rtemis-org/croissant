@@ -28,11 +28,7 @@ read_json_input <- function(x) {
   if (is_hf(x)) {
     ref <- parse_hf(x)
     if (is.null(ref[["file"]])) {
-      return(hf_json(
-        paste0(hf_endpoint(), "/api/datasets/", ref[["repo"]], "/croissant"),
-        hf_token(),
-        paste0("Croissant metadata for `", ref[["repo"]], "`")
-      ))
+      return(hf_croissant(ref[["repo"]], hf_token()))
     }
     x <- hf_download(x, verbosity = 0L)
   }
