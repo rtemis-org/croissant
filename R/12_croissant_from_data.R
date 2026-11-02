@@ -30,9 +30,13 @@
 #' [write_croissant()] into the directory of `file`, where `content_url`
 #' resolves.
 #'
-#' A factor is written as its labels and reads back as character. In CSV, a
-#' missing value is written as an empty field and an empty string as `""`,
-#' and they read back as `NA` and `""`. Parquet keeps every column type.
+#' A factor is written as its labels. Its levels, in order, form an
+#' enumeration record set, `<record_set>_<column>_levels`, with data type
+#' `sc:Enumeration`, one field `label`, and the levels as inline records; the
+#' factor's field `references` that field, so [read_record_set()] returns the
+#' column as a factor with the same levels. In CSV, a missing value is written
+#' as an empty field and an empty string as `""`, and they read back as `NA`
+#' and `""`. Parquet keeps every other column type.
 #'
 #' @param x data.frame, data.table, or tibble: The data.
 #' @param file Character: Path of the data file to write.
@@ -115,7 +119,14 @@ croissant_from_data <- function(
   }
   file_id <- basename(file)
   ids <- field_ids(names(x), record_set)
+  enums <- list()
   fields <- lapply(seq_along(ids), function(i) {
+    v <- x[[i]]
+    references <- if (is.factor(v)) {
+      enum <- enumeration_record_set(levels(v), ids[[i]], record_set)
+      enums[[length(enums) + 1L]] <<- enum
+      Source(field = enum@key)
+    }
     Field(
       id = ids[[i]],
       name = names(x)[[i]],
@@ -123,7 +134,8 @@ croissant_from_data <- function(
       source = Source(
         file_object = file_id,
         extract = Extract(column = names(x)[[i]])
-      )
+      ),
+      references = references
     )
   })
   Croissant(
@@ -137,11 +149,10 @@ croissant_from_data <- function(
       encoding_format = encoding_format,
       sha256 = sha256_file(file)
     )),
-    record_set = list(RecordSet(
-      id = record_set,
-      name = record_set,
-      field = fields
-    )),
+    record_set = c(
+      list(RecordSet(id = record_set, name = record_set, field = fields)),
+      enums
+    ),
     ...
   )
 } # /croissant::croissant_from_data
@@ -196,3 +207,34 @@ field_ids <- function(cols, record_set) {
   ids <- paste0(record_set, "/", gsub("\\s+", "_", cols))
   make.unique(ids, sep = "_")
 } # /croissant::field_ids
+
+
+# %% enumeration_record_set ----
+#' Enumeration record set of a factor's levels
+#'
+#' @param levels Character: Levels, in order.
+#' @param field_id Character: `@id` of the factor's field,
+#' `<record_set>/<column>`.
+#' @param record_set Character: `@id` of the factor's record set.
+#'
+#' @return `RecordSet` object with `@id` `<record_set>_<column>_levels`, data
+#' type `sc:Enumeration`, one key field `<@id>/label`, and one inline record
+#' per level.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+enumeration_record_set <- function(levels, field_id, record_set) {
+  column <- substring(field_id, nchar(record_set) + 2L)
+  id <- paste0(record_set, "_", column, "_levels")
+  label <- paste0(id, "/label")
+  RecordSet(
+    id = id,
+    name = id,
+    description = paste0("Levels of ", column, ", in order."),
+    data_type = "sc:Enumeration",
+    key = label,
+    field = list(Field(id = label, name = "label", data_type = "sc:Text")),
+    data = lapply(levels, \(l) stats::setNames(list(l), label))
+  )
+} # /croissant::enumeration_record_set

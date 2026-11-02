@@ -79,12 +79,15 @@ test_that("a Croissant term missing from the context is a warning and is not rea
 
 test_that("read_croissant() reports every read problem in one error", {
   e <- tryCatch(
-    read_croissant(test_path(
-      "fixtures",
-      "invalid",
-      "1.1",
-      "multilingual_fields.json"
-    )),
+    read_croissant(
+      test_path(
+        "fixtures",
+        "invalid",
+        "1.1",
+        "multilingual_fields.json"
+      ),
+      verbosity = 0L
+    ),
     croissant_read_error = function(e) e
   )
   expect_s3_class(e, "croissant_read_error")

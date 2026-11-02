@@ -29,7 +29,7 @@
 #' @examples
 #' x <- validate_croissant(Croissant(name = "minimal"))
 #' x
-#' x@issues
+#' issues(x)
 CroissantIssues <- new_class(
   name = "CroissantIssues",
   package = "croissant",

@@ -349,7 +349,15 @@ hf_fetch <- function(rev, file, cache_dir, token, verbosity) {
     rev[["commit"]],
     file
   )
+  label <- paste0(
+    rev[["repo"]],
+    "@",
+    substr(rev[["commit"]], 1L, 7L),
+    " ",
+    file
+  )
   if (file.exists(dest) && isTRUE(file.size(dest) == listed[["size"]])) {
+    info("Reading cached ", label, verbosity = verbosity)
     return(dest)
   }
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
@@ -362,15 +370,7 @@ hf_fetch <- function(rev, file, cache_dir, token, verbosity) {
     "/",
     utils::URLencode(file, reserved = FALSE)
   )
-  info(
-    "Downloading ",
-    rev[["repo"]],
-    "@",
-    substr(rev[["commit"]], 1L, 7L),
-    " ",
-    file,
-    verbosity = verbosity
-  )
+  info("Downloading ", label, verbosity = verbosity)
   failed <- hf_get(url, dest, token)
   if (!is.null(failed)) {
     unlink(dest)
@@ -494,7 +494,8 @@ hf_data_files <- function(files) {
 #' @param cache_dir Character: Cache directory.
 #' @param token Optional Character: Hugging Face token. `NULL` reads
 #' `HF_TOKEN`.
-#' @param verbosity Integer: Verbosity level; `1L` reports downloads.
+#' @param verbosity Integer: Verbosity level; `1L` reports each file
+#' downloaded and each file read from the cache.
 #'
 #' @return Character: Local path of the file, with attribute `hf`, the path
 #' pinned to the commit (`hf://datasets/<owner>/<name>@<commit>/<file>`).
@@ -579,6 +580,9 @@ hf_download <- function(
 #' `hf://datasets/<owner>/<name>`.
 #' @param token Optional Character: Hugging Face token, needed for gated and
 #' private datasets. `NULL` reads `HF_TOKEN`.
+#' @param verbosity Integer: Verbosity level; `1L` reports the dataset before
+#' reading and the dataset name and counts of record sets, enumerations, and
+#' files after.
 #'
 #' @return `Croissant` object.
 #'
@@ -591,7 +595,7 @@ hf_download <- function(
 #' cache_dir <- tempfile()
 #' head(read_record_set(x, "mnist", n_max = 5L, cache_dir = cache_dir))
 #' unlink(cache_dir, recursive = TRUE)
-read_croissant_hf <- function(repo, token = NULL) {
+read_croissant_hf <- function(repo, token = NULL, verbosity = 1L) {
   check_character_scalar(repo)
   if (is_hf(repo)) {
     ref <- parse_hf(repo)
@@ -605,10 +609,25 @@ read_croissant_hf <- function(repo, token = NULL) {
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
+  msg0(
+    bold(highlight("\u25B6")),
+    " Reading ",
+    highlight(paste0("hf://datasets/", repo)),
+    "...",
+    verbosity = verbosity
+  )
   doc <- hf_json(
     paste0(hf_endpoint(), "/api/datasets/", repo, "/croissant"),
     hf_token(token),
     paste0("Croissant metadata for `", repo, "`")
   )
-  read_croissant(to_json_text(doc, pretty = FALSE))
+  out <- read_croissant(to_json_text(doc, pretty = FALSE), verbosity = 0L)
+  msg0(
+    "Read ",
+    highlight(first_text(out@name) %||% "(unnamed)"),
+    ": ",
+    croissant_counts(out),
+    verbosity = verbosity
+  )
+  out
 } # /croissant::read_croissant_hf

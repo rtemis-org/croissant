@@ -8,15 +8,26 @@
 # The procedure follows mlcroissant 1.1.1 (operation_graph/operations/*.py):
 # each field's source names an origin, a file or another record set; the
 # origins are read into tables and left-joined through `references`; each
-# field's values are extracted, transformed, and cast to its data type. The
-# result has one column per leaf field, named by field `@id`.
+# field's values are extracted, transformed, and cast to its data type. Each
+# record set table has one column per leaf field, named by field `@id`, which
+# is how another record set references it; `read_record_set()` renames the
+# columns of the table it returns with `column_names()`.
 
 # %% read_record_set ----
 #' Read the records of a record set
 #'
 #' Reads the files a record set draws from, and returns its records as a
-#' table with one column per field, named by field `@id`. Subfields are
-#' columns of their own, named by their `@id`.
+#' table with one column per field. A column is named by the field's `@id`
+#' without the record set's `@id` and `/`: field `default/age` of record set
+#' `default` is column `age`, and subfield `images/bbox/x` of record set
+#' `images` is column `bbox/x`. A field `@id` without that prefix names its
+#' column whole. When two names coincide, every column keeps its full `@id`.
+#'
+#' A text field that `references` a field of an enumeration record set (data
+#' type `sc:Enumeration`) is a factor whose levels are the enumeration's
+#' values in record order, as [croissant_from_data()] writes a factor. A
+#' column holding a value outside the enumeration stays character, with a
+#' warning.
 #'
 #' Files with an `http(s)` `contentUrl` are downloaded into `cache_dir`, and
 #' their `sha256` or `md5` is verified. Files of a Hugging Face dataset
@@ -43,15 +54,20 @@
 #' Class of the result. `"tibble"` requires the 'tibble' package and
 #' `"arrow"` the 'arrow' package.
 #' @param base Optional Character: Directory or URL that relative
-#' `contentUrl`s and `FileSet` globs resolve against. When `x` is a path or
-#' URL, this defaults to its directory.
+#' `contentUrl`s and `FileSet` globs resolve against. When `x` is a path, a
+#' URL, or an `hf://datasets/` path of a file, this defaults to its directory;
+#' a relative `contentUrl` under an `hf://datasets/` directory names a file of
+#' that repository.
 #' @param cache_dir Character: Directory for downloaded and extracted files.
 #' @param n_max Numeric \[1, Inf\]: Most records to return. Files of a
 #' `FileSet` are read in order until the first origin holds `n_max` records,
 #' so later files are not downloaded.
 #' @param token Optional Character: Hugging Face token, for files of gated or
 #' private Hub datasets. `NULL` reads `HF_TOKEN`.
-#' @param verbosity Integer: Verbosity level; `1L` reports downloads.
+#' @param verbosity Integer: Verbosity level; `1L` reports the record set
+#' before reading, each file downloaded or read from the cache, each archive
+#' extracted or whose cached extraction is reused, and the number of rows and
+#' columns read, with the elapsed time.
 #'
 #' @return A data.table, tibble, data.frame, or arrow Table, by `output`.
 #'
@@ -116,26 +132,72 @@ read_record_set <- function(
   }
   if (!S7_inherits(x, Croissant)) {
     check_character_scalar(x)
-    if (is.null(base) && !grepl("^\\s*\\{", x) && !is_hf(x)) {
-      base <- if (grepl("^https?://", x)) {
+    if (is.null(base) && !grepl("^\\s*\\{", x)) {
+      base <- if (is_hf(x)) {
+        if (!is.null(parse_hf(x)[["file"]])) sub("/[^/]*$", "", x)
+      } else if (grepl("^https?://", x)) {
         sub("/[^/]*$", "", x)
       } else {
         dirname(normalizePath(x))
       }
     }
-    x <- read_croissant(x)
+    x <- read_croissant(x, verbosity = 0L)
   }
   ctx <- new_load_context(x, base, cache_dir, verbosity, hf_token(token))
   rs <- find_record_set(x, record_set)
+  start <- Sys.time()
+  msg0(
+    bold(highlight("\u25B6")),
+    " Reading record set ",
+    highlight(node_key(rs)),
+    if (!is.null(x@name)) paste0(" of ", first_text(x@name)),
+    "...",
+    verbosity = verbosity
+  )
   out <- record_set_table(ctx, rs, n_max)
+  enumeration_factors(ctx, rs, out)
+  data.table::setnames(out, column_names(rs, names(out)))
+  msg(
+    "Read in",
+    highlightbig(nrow(out)),
+    "x",
+    highlightbig(ncol(out)),
+    if (nrow(out) >= n_max) "(n_max reached)",
+    sprintf(
+      "in %.1f s",
+      as.numeric(difftime(Sys.time(), start, units = "secs"))
+    ),
+    verbosity = verbosity
+  )
+  table_output(out, output)
+} # /croissant::read_record_set
+
+
+# %% table_output ----
+#' A data.table in the class `output` names
+#'
+#' @param x data.table.
+#' @param output Character \{"data.table", "tibble", "data.frame", "arrow"\}:
+#' Class of the result. `"tibble"` requires the 'tibble' package and `"arrow"`
+#' the 'arrow' package.
+#'
+#' @return A data.table, tibble, data.frame, or arrow Table, by `output`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+table_output <- function(x, output) {
+  if (output %in% c("tibble", "arrow")) {
+    check_dependencies(output)
+  }
   switch(
     output,
-    data.table = out,
-    data.frame = as.data.frame(out),
-    tibble = tibble::as_tibble(out),
-    arrow = arrow::as_arrow_table(as.data.frame(out))
+    data.table = x,
+    data.frame = as.data.frame(x),
+    tibble = tibble::as_tibble(x),
+    arrow = arrow::as_arrow_table(as.data.frame(x))
   )
-} # /croissant::read_record_set
+} # /croissant::table_output
 
 
 # %% find_record_set ----
@@ -165,6 +227,98 @@ find_record_set <- function(x, record_set) {
     class = c("rtemis_value_error", "rtemis_input_error")
   )
 } # /croissant::find_record_set
+
+
+# %% column_names ----
+#' Column names of a record set table
+#'
+#' A field `@id` that starts with the `@id` of the record set (its name when
+#' it has no `@id`) followed by `/` loses that prefix; any other `@id` is kept
+#' whole. When two shortened names coincide, or one is empty, every column
+#' keeps its full `@id`.
+#'
+#' @param rs `RecordSet` object.
+#' @param ids Character: Field `@id`s, one per column.
+#'
+#' @return Character: Column names.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+column_names <- function(rs, ids) {
+  rs_id <- rs@id %||% first_text(rs@name)
+  if (is.null(rs_id)) {
+    return(ids)
+  }
+  prefix <- paste0(rs_id, "/")
+  short <- ifelse(
+    startsWith(ids, prefix),
+    substring(ids, nchar(prefix) + 1L),
+    ids
+  )
+  if (anyDuplicated(short) > 0L || !all(nzchar(short))) {
+    return(ids)
+  }
+  short
+} # /croissant::column_names
+
+
+# %% enumeration_factors ----
+#' Convert fields that reference an enumeration to factors
+#'
+#' A character column whose field `references` a field of a record set with
+#' data type `sc:Enumeration` becomes a factor. Its levels are the values of
+#' the referenced field in record order: the order of the enumeration's
+#' inline `data`, or of its file. A column holding a value outside the
+#' enumeration stays character, with a warning.
+#'
+#' @param ctx Environment: Load context from `new_load_context()`.
+#' @param rs `RecordSet` object.
+#' @param tab data.table: Records of `rs`, columns named by field `@id`;
+#' modified in place.
+#'
+#' @return `tab`, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+enumeration_factors <- function(ctx, rs, tab) {
+  for (leaf in leaf_fields(rs@field)) {
+    f <- leaf[["field"]]
+    ref <- f@references
+    values <- tab[[f@id]]
+    if (is.null(ref) || is.null(ref@field) || !is.character(values)) {
+      next
+    }
+    enum_id <- ctx[["field_rs"]][ref@field]
+    if (is.na(enum_id)) {
+      next
+    }
+    enum <- find_record_set(ctx[["x"]], unname(enum_id))
+    if (!"sc:Enumeration" %in% enum@data_type) {
+      next
+    }
+    levels <- unique(as.character(record_set_table(ctx, enum)[[ref@field]]))
+    levels <- levels[!is.na(levels)]
+    outside <- setdiff(unique(values[!is.na(values)]), levels)
+    if (length(outside) > 0L) {
+      warn(
+        "Field ",
+        f@id,
+        " stays character: ",
+        paste(utils::head(outside, 5L), collapse = ", "),
+        if (length(outside) > 5L) ", ..." else "",
+        " not among the levels of enumeration ",
+        unname(enum_id),
+        ".",
+        use_warning = TRUE
+      )
+      next
+    }
+    data.table::set(tab, j = f@id, value = factor(values, levels = levels))
+  }
+  invisible(tab)
+} # /croissant::enumeration_factors
 
 
 # %% record_set_table ----

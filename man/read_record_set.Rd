@@ -26,8 +26,10 @@ Class of the result. \code{"tibble"} requires the 'tibble' package and
 \code{"arrow"} the 'arrow' package.}
 
 \item{base}{Optional Character: Directory or URL that relative
-\code{contentUrl}s and \code{FileSet} globs resolve against. When \code{x} is a path or
-URL, this defaults to its directory.}
+\code{contentUrl}s and \code{FileSet} globs resolve against. When \code{x} is a path, a
+URL, or an \verb{hf://datasets/} path of a file, this defaults to its directory;
+a relative \code{contentUrl} under an \verb{hf://datasets/} directory names a file of
+that repository.}
 
 \item{cache_dir}{Character: Directory for downloaded and extracted files.}
 
@@ -38,17 +40,29 @@ so later files are not downloaded.}
 \item{token}{Optional Character: Hugging Face token, for files of gated or
 private Hub datasets. \code{NULL} reads \code{HF_TOKEN}.}
 
-\item{verbosity}{Integer: Verbosity level; \code{1L} reports downloads.}
+\item{verbosity}{Integer: Verbosity level; \code{1L} reports the record set
+before reading, each file downloaded or read from the cache, each archive
+extracted or whose cached extraction is reused, and the number of rows and
+columns read, with the elapsed time.}
 }
 \value{
 A data.table, tibble, data.frame, or arrow Table, by \code{output}.
 }
 \description{
 Reads the files a record set draws from, and returns its records as a
-table with one column per field, named by field \verb{@id}. Subfields are
-columns of their own, named by their \verb{@id}.
+table with one column per field. A column is named by the field's \verb{@id}
+without the record set's \verb{@id} and \code{/}: field \code{default/age} of record set
+\code{default} is column \code{age}, and subfield \code{images/bbox/x} of record set
+\code{images} is column \code{bbox/x}. A field \verb{@id} without that prefix names its
+column whole. When two names coincide, every column keeps its full \verb{@id}.
 }
 \details{
+A text field that \code{references} a field of an enumeration record set (data
+type \code{sc:Enumeration}) is a factor whose levels are the enumeration's
+values in record order, as \code{\link[=croissant_from_data]{croissant_from_data()}} writes a factor. A
+column holding a value outside the enumeration stays character, with a
+warning.
+
 Files with an \code{http(s)} \code{contentUrl} are downloaded into \code{cache_dir}, and
 their \code{sha256} or \code{md5} is verified. Files of a Hugging Face dataset
 repository (a \code{git+https} \code{FileObject} with a Hub \code{contentUrl}, as in the

@@ -96,6 +96,29 @@ node_list <- function(...) {
   )
 }
 
+# A `node_list()` property `name` whose elements are named by `node_key()`, so
+# that `x@record_set$titanic` selects a node. The setter runs in the
+# constructor and on every assignment.
+named_node_list <- function(name, ...) {
+  property <- node_list(...)
+  property[["setter"]] <- function(self, value) {
+    if (!is.null(value)) {
+      names(value) <- vapply(value, node_key, character(1L))
+    }
+    prop(self, name) <- value
+    self
+  }
+  property
+}
+
+# `@id` of a node, else its first name, else "".
+node_key <- function(x) {
+  if (!S7_inherits(x) || !"id" %in% prop_names(x)) {
+    return("")
+  }
+  x@id %||% first_text(x@name) %||% ""
+}
+
 # Licenses: a character vector, or a list of strings and `CreativeWork`
 # objects.
 optional_license <- new_property(
@@ -568,7 +591,8 @@ FileSet <- new_class(
 #' Croissant: metadata of one dataset
 #'
 #' The Responsible AI properties (`rai:` namespace) are character vectors.
-#' Dates are kept as the strings the document gives.
+#' Dates are kept as the strings the document gives. Properties are read and
+#' set with `$` and `[[`, as are the properties of the node classes.
 #'
 #' @param version Character \{"1.0", "1.1"\}: Croissant version the metadata
 #' conforms to.
@@ -599,8 +623,10 @@ FileSet <- new_class(
 #' `"en"`.
 #' @param is_live_dataset Optional Logical: Whether the dataset changes over
 #' time, in which case its files need no checksum.
-#' @param distribution Optional List: `FileObject` and `FileSet` objects.
-#' @param record_set Optional List: `RecordSet` objects.
+#' @param distribution Optional List: `FileObject` and `FileSet` objects,
+#' named by `@id`.
+#' @param record_set Optional List: `RecordSet` objects, named by `@id`, so
+#' that `x@record_set$<id>` selects one.
 #' @param data_collection,data_collection_type,data_collection_missing_data,data_collection_raw_data Optional Character: How the data was collected (`rai:dataCollection`, `rai:dataCollectionType`, `rai:dataCollectionMissingData`, `rai:dataCollectionRawData`).
 #' @param data_imputation_protocol,data_preprocessing_protocol,data_manipulation_protocol Optional Character: How the data was processed (`rai:dataImputationProtocol`, `rai:dataPreprocessingProtocol`, `rai:dataManipulationProtocol`).
 #' @param data_annotation_protocol,data_annotation_platform,data_annotation_analysis,annotations_per_item,annotator_demographics,machine_annotation_tools Optional Character: How the data was annotated (`rai:dataAnnotationProtocol`, `rai:dataAnnotationPlatform`, `rai:dataAnnotationAnalysis`, `rai:annotationsPerItem`, `rai:annotatorDemographics`, `rai:machineAnnotationTools`).
@@ -644,8 +670,8 @@ Croissant <- new_class(
     keywords = optional_strings,
     in_language = optional_strings,
     is_live_dataset = optional_logical_scalar,
-    distribution = node_list("FileObject", "FileSet"),
-    record_set = node_list("RecordSet"),
+    distribution = named_node_list("distribution", "FileObject", "FileSet"),
+    record_set = named_node_list("record_set", "RecordSet"),
     data_collection = optional_strings,
     data_collection_type = optional_strings,
     data_collection_missing_data = optional_strings,

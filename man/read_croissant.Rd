@@ -4,7 +4,7 @@
 \alias{read_croissant}
 \title{Read Croissant metadata}
 \usage{
-read_croissant(x)
+read_croissant(x, verbosity = 1L)
 }
 \arguments{
 \item{x}{Character: Path to a Croissant JSON-LD file, an \code{http(s)} URL, a
@@ -12,6 +12,10 @@ JSON string, or an \verb{hf://datasets/} path. A path naming a file of a
 Hugging Face dataset reads that file; one naming the dataset only, as
 \verb{hf://datasets/<owner>/<name>}, reads the Croissant metadata the Hub
 generates for it, as \code{\link[=read_croissant_hf]{read_croissant_hf()}} does.}
+
+\item{verbosity}{Integer: Verbosity level; \code{1L} reports the input before
+reading and the dataset name and counts of record sets, enumerations, and
+files after.}
 }
 \value{
 \code{Croissant} object.

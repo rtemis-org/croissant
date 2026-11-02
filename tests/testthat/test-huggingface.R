@@ -74,13 +74,13 @@ test_that("Hub metadata and records read from the Hugging Face Hub", {
   skip_if_offline("huggingface.co")
   local_options(croissant.cache_dir = local_tempdir())
   local_envvar(HF_ENDPOINT = NA)
-  x <- read_croissant_hf("ylecun/mnist")
+  x <- read_croissant_hf("ylecun/mnist", verbosity = 0L)
   expect_true(is_valid(validate_croissant(x)))
   tab <- read_record_set(x, "mnist", n_max = 5L, verbosity = 0L)
   expect_identical(nrow(tab), 5L)
-  expect_identical(tab[["mnist/label"]], c(7L, 2L, 1L, 0L, 4L))
-  expect_identical(unique(tab[["mnist/split"]]), "test")
-  expect_type(tab[["mnist/image"]][[1L]], "raw")
+  expect_identical(tab[["label"]], c(7L, 2L, 1L, 0L, 4L))
+  expect_identical(unique(tab[["split"]]), "test")
+  expect_type(tab[["image"]][[1L]], "raw")
   path <- hf_download(
     "hf://datasets/ylecun/mnist@refs%2Fconvert%2Fparquet/mnist/test/0000.parquet",
     verbosity = 0L

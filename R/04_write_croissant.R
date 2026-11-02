@@ -7,7 +7,7 @@
 #'
 #' Writes a `Croissant` object as a JSON-LD document with the standard
 #' context of its version (see [croissant_context()]). `conformsTo` always
-#' includes the Croissant IRI of `x@version`.
+#' includes the Croissant IRI of `x$version`.
 #'
 #' In version 1.1, a name or description named by language tag is written as
 #' a language map. In version 1.0, it is written as an array of
@@ -147,7 +147,7 @@ write_value <- function(value, term, version) {
     },
     node = node_to_list(value, term[["node"]], version),
     nodes = lapply(
-      value,
+      unname(value),
       node_to_list,
       class_name = term[["node"]],
       version = version
@@ -163,7 +163,7 @@ write_value <- function(value, term, version) {
     },
     distribution = ,
     agents = {
-      nodes <- lapply(value, function(v) {
+      nodes <- lapply(unname(value), function(v) {
         node_to_list(v, S7_class(v)@name, version)
       })
       if (term[["kind"]] == "agents" && length(nodes) == 1L) {

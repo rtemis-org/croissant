@@ -4,7 +4,7 @@
 \alias{read_croissant_hf}
 \title{Read the Croissant metadata of a Hugging Face dataset}
 \usage{
-read_croissant_hf(repo, token = NULL)
+read_croissant_hf(repo, token = NULL, verbosity = 1L)
 }
 \arguments{
 \item{repo}{Character: Dataset, as \verb{<owner>/<name>} or
@@ -12,6 +12,10 @@ read_croissant_hf(repo, token = NULL)
 
 \item{token}{Optional Character: Hugging Face token, needed for gated and
 private datasets. \code{NULL} reads \code{HF_TOKEN}.}
+
+\item{verbosity}{Integer: Verbosity level; \code{1L} reports the dataset before
+reading and the dataset name and counts of record sets, enumerations, and
+files after.}
 }
 \value{
 \code{Croissant} object.

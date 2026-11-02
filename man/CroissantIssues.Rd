@@ -26,7 +26,7 @@ read in a way the author may not intend.
 \examples{
 x <- validate_croissant(Croissant(name = "minimal"))
 x
-x@issues
+issues(x)
 }
 \author{
 EDG

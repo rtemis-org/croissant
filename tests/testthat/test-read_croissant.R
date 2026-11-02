@@ -8,7 +8,7 @@ test_that("every upstream 1.0 and 1.1 example reads into a Croissant object", {
   for (nm in names(paths)) {
     # huggingface-data_provenance_initiative uses equivalentProperty without
     # defining it, which read_croissant() reports as a warning.
-    x <- suppressWarnings(read_croissant(paths[[nm]]))
+    x <- suppressWarnings(read_croissant(paths[[nm]], verbosity = 0L))
     expect_true(S7::S7_inherits(x, Croissant), label = nm)
     expect_identical(x@version, sub("/.*$", "", nm), label = nm)
     expect_gt(length(x@record_set), 0L)
@@ -16,7 +16,10 @@ test_that("every upstream 1.0 and 1.1 example reads into a Croissant object", {
 })
 
 test_that("typed properties are read from the titanic example", {
-  x <- read_croissant(test_path("fixtures", "1.0", "titanic.json"))
+  x <- read_croissant(
+    test_path("fixtures", "1.0", "titanic.json"),
+    verbosity = 0L
+  )
   expect_identical(x@name, "Titanic")
   expect_identical(x@license, "afl-3.0")
   expect_identical(x@dataset_version, "1.0.0")
@@ -38,7 +41,10 @@ test_that("typed properties are read from the titanic example", {
 test_that("a JSON string reads as a file does", {
   path <- test_path("fixtures", "1.0", "titanic.json")
   txt <- paste(readLines(path, warn = FALSE), collapse = "\n")
-  expect_equal(read_croissant(txt), read_croissant(path))
+  expect_equal(
+    read_croissant(txt, verbosity = 0L),
+    read_croissant(path, verbosity = 0L)
+  )
 })
 
 test_that("1.1 text values read as character vectors named by language", {
@@ -48,11 +54,14 @@ test_that("1.1 text values read as character vectors named by language", {
   doc[["distribution"]][[1L]][["description"]] <- "A CSV table."
   doc[["recordSet"]][[1L]][["field"]][[3L]][["name"]] <- "third"
   doc[["recordSet"]][[1L]][["field"]][[3L]][["description"]] <- "Third."
-  x <- read_croissant(as.character(jsonlite::toJSON(
-    doc,
-    auto_unbox = TRUE,
-    null = "null"
-  )))
+  x <- read_croissant(
+    as.character(jsonlite::toJSON(
+      doc,
+      auto_unbox = TRUE,
+      null = "null"
+    )),
+    verbosity = 0L
+  )
   rs <- x@record_set[[1L]]
   expect_identical(rs@name, c(en = "english", fr = "fran\u00e7ais"))
   expect_identical(
@@ -67,7 +76,10 @@ test_that("1.1 text values read as character vectors named by language", {
 
 test_that("a value of the wrong JSON type raises croissant_read_error", {
   expect_error(
-    read_croissant(test_path("fixtures", "1.1-multilingual.json")),
+    read_croissant(
+      test_path("fixtures", "1.1-multilingual.json"),
+      verbosity = 0L
+    ),
     class = "croissant_read_error"
   )
 })
@@ -76,13 +88,13 @@ test_that("the read error states the number of problems", {
   json <- write_croissant(Croissant(name = "x"))
   one <- sub('"name": "x"', '"name": 42', json, fixed = TRUE)
   expect_error(
-    read_croissant(one),
+    read_croissant(one, verbosity = 0L),
     "has 1 problem that prevents reading it",
     class = "croissant_read_error"
   )
   two <- sub('"@type": "sc:Dataset"', '"@type": "sc:Thing"', one, fixed = TRUE)
   expect_error(
-    read_croissant(two),
+    read_croissant(two, verbosity = 0L),
     "has 2 problems that prevent reading it",
     class = "croissant_read_error"
   )
@@ -90,7 +102,10 @@ test_that("the read error states the number of problems", {
 
 test_that("a 0.8 document raises croissant_version_error", {
   expect_error(
-    read_croissant(test_path("fixtures", "0.8", "titanic.json")),
+    read_croissant(
+      test_path("fixtures", "0.8", "titanic.json"),
+      verbosity = 0L
+    ),
     class = "croissant_version_error"
   )
 })
@@ -99,7 +114,10 @@ test_that("an unsupported conformsTo version raises croissant_version_error", {
   doc <- parse_file(test_path("fixtures", "1.0", "titanic.json"))
   doc[["conformsTo"]] <- "http://mlcommons.org/croissant/2.0"
   json <- as.character(jsonlite::toJSON(doc, auto_unbox = TRUE, null = "null"))
-  expect_error(read_croissant(json), class = "croissant_version_error")
+  expect_error(
+    read_croissant(json, verbosity = 0L),
+    class = "croissant_version_error"
+  )
 })
 
 test_that("a non-standard context is read through jsonld with the same result", {
@@ -118,12 +136,15 @@ test_that("a non-standard context is read through jsonld with the same result", 
     null = "null",
     digits = NA
   ))
-  expect_equal(read_croissant(json), read_croissant(path))
+  expect_equal(
+    read_croissant(json, verbosity = 0L),
+    read_croissant(path, verbosity = 0L)
+  )
 })
 
 test_that("a missing file raises an input error", {
   expect_error(
-    read_croissant(file.path(tempdir(), "no-such-file.json")),
+    read_croissant(file.path(tempdir(), "no-such-file.json"), verbosity = 0L),
     class = "rtemis_input_error"
   )
 })
@@ -131,19 +152,26 @@ test_that("a missing file raises an input error", {
 test_that("an unreachable URL raises a download error", {
   skip_on_cran()
   expect_error(
-    suppressWarnings(read_croissant("https://croissant.invalid/metadata.json")),
+    suppressWarnings(read_croissant(
+      "https://croissant.invalid/metadata.json",
+      verbosity = 0L
+    )),
     class = "croissant_download_error"
   )
 })
 
 test_that("dataset properties typed by mlcroissant are read into typed slots", {
-  x <- read_croissant(test_path("fixtures", "1.0", "dices-350.json"))
+  x <- read_croissant(
+    test_path("fixtures", "1.0", "dices-350.json"),
+    verbosity = 0L
+  )
   expect_true(S7::S7_inherits(x@creator[[1L]], Organization))
   expect_type(x@data_collection, "character")
   expect_type(x@data_biases, "character")
   expect_null(x@other_properties[["rai:dataCollection"]])
   y <- read_croissant(
-    test_path("fixtures", "1.1", "commoncrawl-CC-MAIN-2025-43-draft.json")
+    test_path("fixtures", "1.1", "commoncrawl-CC-MAIN-2025-43-draft.json"),
+    verbosity = 0L
   )
   expect_identical(y@date_published, "2025-10-19T01:06:58Z")
 })
@@ -157,7 +185,7 @@ test_that("a creator given as a plain name stays in other_properties", {
     null = "null",
     digits = NA
   ))
-  x <- read_croissant(json)
+  x <- read_croissant(json, verbosity = 0L)
   expect_null(x@creator)
   expect_identical(x@other_properties[["creator"]], "Thomas Cason")
   expect_match(
@@ -179,9 +207,21 @@ test_that("licenses read as strings or CreativeWork objects", {
     null = "null",
     digits = NA
   ))
-  x <- read_croissant(json)
+  x <- read_croissant(json, verbosity = 0L)
   expect_identical(x@license[[1L]], "afl-3.0")
   expect_true(S7::S7_inherits(x@license[[2L]], CreativeWork))
   expect_identical(x@license[[2L]]@name, "CC BY 4.0")
-  expect_equal(read_croissant(write_croissant(x)), x)
+  expect_equal(read_croissant(write_croissant(x), verbosity = 0L), x)
+})
+
+test_that("verbosity 1 reports the input, then the name and counts", {
+  path <- test_path("fixtures", "1.0", "titanic.json")
+  out <- paste(capture_messages(read_croissant(path)), collapse = "")
+  expect_match(out, "Reading titanic.json...", fixed = TRUE)
+  expect_match(
+    out,
+    "Read Titanic: Croissant 1.0, 1 record set, 2 enumerations, 3 files",
+    fixed = TRUE
+  )
+  expect_no_message(read_croissant(path, verbosity = 0L))
 })

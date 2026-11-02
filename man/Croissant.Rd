@@ -99,9 +99,11 @@ document, in the form of \code{license}.}
 \item{is_live_dataset}{Optional Logical: Whether the dataset changes over
 time, in which case its files need no checksum.}
 
-\item{distribution}{Optional List: \code{FileObject} and \code{FileSet} objects.}
+\item{distribution}{Optional List: \code{FileObject} and \code{FileSet} objects,
+named by \verb{@id}.}
 
-\item{record_set}{Optional List: \code{RecordSet} objects.}
+\item{record_set}{Optional List: \code{RecordSet} objects, named by \verb{@id}, so
+that \verb{x@record_set$<id>} selects one.}
 
 \item{data_collection, data_collection_type, data_collection_missing_data, data_collection_raw_data}{Optional Character: How the data was collected (\code{rai:dataCollection}, \code{rai:dataCollectionType}, \code{rai:dataCollectionMissingData}, \code{rai:dataCollectionRawData}).}
 
@@ -120,7 +122,8 @@ such as the \verb{prov:} properties.}
 }
 \description{
 The Responsible AI properties (\verb{rai:} namespace) are character vectors.
-Dates are kept as the strings the document gives.
+Dates are kept as the strings the document gives. Properties are read and
+set with \code{$} and \code{[[}, as are the properties of the node classes.
 }
 \examples{
 Croissant(

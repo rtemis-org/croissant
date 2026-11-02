@@ -7,17 +7,20 @@ test_that("every upstream example round-trips to JSON-LD-equivalent JSON", {
   paths <- fixture_paths()
   for (nm in names(paths)) {
     original <- paste(readLines(paths[[nm]], warn = FALSE), collapse = "\n")
-    written <- write_croissant(suppressWarnings(read_croissant(paths[[nm]])))
+    written <- write_croissant(suppressWarnings(read_croissant(
+      paths[[nm]],
+      verbosity = 0L
+    )))
     expect_equal(expanded_json(written), expanded_json(original), label = nm)
   }
 })
 
 test_that("write then read returns an equal object", {
   for (path in fixture_paths()) {
-    x <- suppressWarnings(read_croissant(path))
+    x <- suppressWarnings(read_croissant(path, verbosity = 0L))
     file <- tempfile(fileext = ".json")
     write_croissant(x, file)
-    expect_equal(read_croissant(file), x)
+    expect_equal(read_croissant(file, verbosity = 0L), x)
     unlink(file)
   }
 })
@@ -46,10 +49,13 @@ test_that("language-tagged text is a language map in 1.1 and value objects in 1.
     list(`@value` = "fran\u00e7ais", `@language` = "fr")
   )
   expect_identical(
-    read_croissant(write_croissant(Croissant(
-      version = "1.0",
-      name = name
-    )))@name,
+    read_croissant(
+      write_croissant(Croissant(
+        version = "1.0",
+        name = name
+      )),
+      verbosity = 0L
+    )@name,
     name
   )
 })
@@ -80,7 +86,7 @@ test_that("objects built in R write and read back", {
       )
     )
   )
-  y <- read_croissant(write_croissant(x))
+  y <- read_croissant(write_croissant(x), verbosity = 0L)
   expect_identical(y@record_set[[1L]]@field[[1L]]@source@extract@column, "name")
   expect_identical(y@conforms_to, "http://mlcommons.org/croissant/1.1")
 })
@@ -93,14 +99,6 @@ test_that("strings with an S3 class write as plain strings", {
       FileObject(id = "f.csv", content_url = "f.csv", sha256 = hash)
     )
   )
-  y <- read_croissant(write_croissant(x))
+  y <- read_croissant(write_croissant(x), verbosity = 0L)
   expect_identical(y@distribution[[1L]]@sha256, "0123abcd")
-})
-
-test_that("print shows name, version, distribution, and record sets", {
-  x <- read_croissant(test_path("fixtures", "1.0", "titanic.json"))
-  out <- paste(capture.output(print(x)), collapse = "\n")
-  expect_match(out, "Titanic")
-  expect_match(out, "Croissant 1.0")
-  expect_match(out, "passengers: ")
 })

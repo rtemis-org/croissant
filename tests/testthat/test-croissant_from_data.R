@@ -8,7 +8,7 @@ typed_table <- function() {
     d = c(1.5, NA, 3.25),
     b = c(TRUE, FALSE, NA),
     s = c("a", NA, "c"),
-    f = factor(c("u", "v", "u")),
+    f = factor(c("u", "v", "u"), levels = c("v", "u", "w")),
     dt = as.Date("2024-01-01") + 0:2,
     ts = as.POSIXct("2024-01-01 10:00:00", tz = "UTC") + 3600 * 0:2,
     `my col` = 7:9,
@@ -37,11 +37,7 @@ round_trip <- function(x, format, version = "1.1") {
 test_that("CSV and Parquet metadata validate and read back the table", {
   x <- typed_table()
   expected <- x
-  expected[["f"]] <- as.character(expected[["f"]])
-  names(expected) <- paste0(
-    "default/",
-    c("i", "d", "b", "s", "f", "dt", "ts", "my_col")
-  )
+  names(expected) <- c("i", "d", "b", "s", "f", "dt", "ts", "my_col")
   formats <- "csv"
   if (requireNamespace("arrow", quietly = TRUE)) {
     formats <- c(formats, "parquet")
@@ -51,15 +47,20 @@ test_that("CSV and Parquet metadata validate and read back the table", {
       rt <- round_trip(x, format, version)
       issues <- validate_croissant(rt[["path"]])
       expect_identical(nrow(issues@issues), 0L, label = paste(format, version))
-      y <- read_record_set(rt[["path"]], "default", output = "data.frame")
+      y <- read_record_set(
+        rt[["path"]],
+        "default",
+        output = "data.frame",
+        verbosity = 0L
+      )
       expect_equal(
         y,
         expected,
         ignore_attr = TRUE,
         label = paste(format, version)
       )
-      expect_s3_class(y[["default/ts"]], "POSIXct")
-      expect_s3_class(y[["default/dt"]], "Date")
+      expect_s3_class(y[["ts"]], "POSIXct")
+      expect_s3_class(y[["dt"]], "Date")
     }
   }
 })
@@ -84,6 +85,35 @@ test_that("data types follow column classes", {
   expect_identical(fields[[8L]]@id, "default/my_col")
   expect_identical(fields[[8L]]@name, "my col")
   expect_identical(fields[[8L]]@source@extract@column, "my col")
+})
+
+test_that("a factor's levels form an enumeration record set", {
+  rt <- round_trip(typed_table(), "csv")
+  m <- rt[["metadata"]]
+  expect_length(m@record_set, 2L)
+  enum <- m@record_set[[2L]]
+  expect_identical(enum@id, "default_f_levels")
+  expect_identical(enum@data_type, "sc:Enumeration")
+  expect_identical(enum@key, "default_f_levels/label")
+  expect_identical(
+    vapply(enum@data, \(r) r[["default_f_levels/label"]], character(1L)),
+    c("v", "u", "w")
+  )
+  expect_identical(m@record_set[[1L]]@field[[5L]]@references@field, enum@key)
+  y <- read_record_set(rt[["path"]], "default", verbosity = 0L)
+  expect_identical(levels(y[["f"]]), c("v", "u", "w"))
+})
+
+test_that("a value outside the enumeration keeps the column character", {
+  rt <- round_trip(data.frame(f = factor(c("a", "b"))), "csv")
+  m <- rt[["metadata"]]
+  m@record_set[[2L]]@data <- list(list(`default_f_levels/label` = "a"))
+  write_croissant(m, rt[["path"]])
+  expect_warning(
+    y <- read_record_set(rt[["path"]], "default", verbosity = 0L),
+    "stays character"
+  )
+  expect_identical(y[["f"]], c("a", "b"))
 })
 
 test_that("the FileObject records the file's size and sha256", {
@@ -120,6 +150,11 @@ test_that("column names that sanitize to the same @id stay unique", {
 
 test_that("CSV keeps empty strings apart from missing values", {
   rt <- round_trip(data.frame(s = c("a", "", NA)), "csv")
-  y <- read_record_set(rt[["path"]], "default", output = "data.frame")
-  expect_identical(y[["default/s"]], c("a", "", NA))
+  y <- read_record_set(
+    rt[["path"]],
+    "default",
+    output = "data.frame",
+    verbosity = 0L
+  )
+  expect_identical(y[["s"]], c("a", "", NA))
 })

@@ -29,10 +29,18 @@ reference:
       - read_croissant
       - write_croissant
       - croissant_context
+  - title: Inspect
+    contents:
+      - record_sets
+      - enumerations
+      - fields
+      - files
+      - about
   - title: Validate
     contents:
       - validate_croissant
       - is_valid
+      - issues
       - CroissantIssues
   - title: Records
     contents:

@@ -49,9 +49,13 @@ character and factor to \code{sc:Text}. Write the metadata with
 resolves.
 }
 \details{
-A factor is written as its labels and reads back as character. In CSV, a
-missing value is written as an empty field and an empty string as \code{""},
-and they read back as \code{NA} and \code{""}. Parquet keeps every column type.
+A factor is written as its labels. Its levels, in order, form an
+enumeration record set, \verb{<record_set>_<column>_levels}, with data type
+\code{sc:Enumeration}, one field \code{label}, and the levels as inline records; the
+factor's field \code{references} that field, so \code{\link[=read_record_set]{read_record_set()}} returns the
+column as a factor with the same levels. In CSV, a missing value is written
+as an empty field and an empty string as \code{""}, and they read back as \code{NA}
+and \code{""}. Parquet keeps every other column type.
 }
 \examples{
 dir <- tempfile()

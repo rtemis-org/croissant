@@ -21,7 +21,7 @@ If \code{path} is \code{NULL}, the JSON text as a character scalar of class
 \description{
 Writes a \code{Croissant} object as a JSON-LD document with the standard
 context of its version (see \code{\link[=croissant_context]{croissant_context()}}). \code{conformsTo} always
-includes the Croissant IRI of \code{x@version}.
+includes the Croissant IRI of \code{x$version}.
 }
 \details{
 In version 1.1, a name or description named by language tag is written as

@@ -159,6 +159,12 @@ container_of <- function(ctx, file) {
 #' @keywords internal
 #' @noRd
 fetch <- function(ctx, url, sha256 = NULL, md5 = NULL) {
+  base <- ctx[["base"]]
+  is_relative <- !grepl("^[A-Za-z][A-Za-z0-9+.-]*://", url) &&
+    !startsWith(url, "/")
+  if (is_relative && !is.null(base) && is_hf(base)) {
+    url <- paste0(sub("/+$", "", base), "/", url)
+  }
   if (is_hf(url)) {
     ref <- parse_hf(url)
     if (is.null(ref[["file"]])) {
@@ -187,8 +193,7 @@ fetch <- function(ctx, url, sha256 = NULL, md5 = NULL) {
       class = c("croissant_file_error", "rtemis_input_error")
     )
   }
-  base <- ctx[["base"]]
-  if (!grepl("^[A-Za-z][A-Za-z0-9+.-]*://", url) && !startsWith(url, "/")) {
+  if (is_relative) {
     if (!is.null(base) && grepl("^https?://", base)) {
       url <- paste0(sub("/+$", "", base), "/", url)
     } else {
@@ -240,6 +245,7 @@ download_cached <- function(ctx, url, sha256, md5) {
   }
   dest <- file.path(ctx[["cache_dir"]], "downloads", key, name)
   if (file.exists(dest) && checksum_ok(dest, sha256, md5)) {
+    info("Reading cached ", url, verbosity = ctx[["verbosity"]])
     return(dest)
   }
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
@@ -339,8 +345,9 @@ sha256_string <- function(x) {
 #' Local directory holding the content of an archive or directory
 #'
 #' A zip archive is extracted with `utils::unzip()`, and a tar archive,
-#' compressed or not, with `utils::untar()`, into the cache. A local
-#' directory is used in place.
+#' compressed or not, with `utils::untar()`, into the cache, which is reused
+#' while the archive's path, size, and modification time are unchanged. A
+#' local directory is used in place.
 #'
 #' @param ctx Environment: Load context from `new_load_context()`.
 #' @param container `FileObject` object.
@@ -360,12 +367,19 @@ container_dir <- function(ctx, container) {
     ctx[["dirs"]][[id]] <- path
     return(path)
   }
-  info <- file.info(path)
+  stats <- file.info(path)
   key <- sha256_string(
-    paste(normalizePath(path), info[["size"]], as.numeric(info[["mtime"]]))
+    paste(normalizePath(path), stats[["size"]], as.numeric(stats[["mtime"]]))
   )
   exdir <- file.path(ctx[["cache_dir"]], "extracted", key)
-  if (!dir.exists(exdir)) {
+  if (dir.exists(exdir)) {
+    info(
+      "Reading cached extraction of ",
+      basename(path),
+      verbosity = ctx[["verbosity"]]
+    )
+  } else {
+    info("Extracting ", basename(path), verbosity = ctx[["verbosity"]])
     dir.create(exdir, recursive = TRUE, showWarnings = FALSE)
     formats <- container@encoding_format %||% character()
     is_zip <- any(grepl("zip", formats)) || grepl("\\.zip$", path)

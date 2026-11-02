@@ -19,6 +19,9 @@
 #' Hugging Face dataset reads that file; one naming the dataset only, as
 #' `hf://datasets/<owner>/<name>`, reads the Croissant metadata the Hub
 #' generates for it, as [read_croissant_hf()] does.
+#' @param verbosity Integer: Verbosity level; `1L` reports the input before
+#' reading and the dataset name and counts of record sets, enumerations, and
+#' files after.
 #'
 #' @return `Croissant` object.
 #'
@@ -38,7 +41,15 @@
 #' }'
 #' x <- read_croissant(json)
 #' x
-read_croissant <- function(x) {
+read_croissant <- function(x, verbosity = 1L) {
+  check_character_scalar(x)
+  msg0(
+    bold(highlight("\u25B6")),
+    " Reading ",
+    highlight(input_label(x)),
+    "...",
+    verbosity = verbosity
+  )
   log <- new_issue_log()
   out <- read_document(x, log)
   errors <- log_errors(log)
@@ -69,8 +80,63 @@ read_croissant <- function(x) {
       use_warning = TRUE
     )
   }
+  msg0(
+    "Read ",
+    highlight(first_text(out@name) %||% "(unnamed)"),
+    ": ",
+    croissant_counts(out),
+    verbosity = verbosity
+  )
   out
 } # /croissant::read_croissant
+
+
+# %% input_label ----
+#' Name of a `read_croissant()` input, for messages
+#'
+#' @param x Character: Path, URL, JSON string, or `hf://datasets/` path.
+#'
+#' @return Character scalar: `"JSON text"` for a JSON string, the basename of
+#' a local path, and `x` otherwise.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+input_label <- function(x) {
+  if (grepl("^\\s*\\{", x)) {
+    "JSON text"
+  } else if (is_hf(x) || grepl("^https?://", x)) {
+    x
+  } else {
+    basename(x)
+  }
+} # /croissant::input_label
+
+
+# %% croissant_counts ----
+#' Version and node counts of Croissant metadata, as one line
+#'
+#' @param x `Croissant` object.
+#'
+#' @return Character scalar, such as
+#' `"Croissant 1.0, 1 record set, 2 enumerations, 3 files"`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+croissant_counts <- function(x) {
+  is_enum <- vapply(x@record_set %||% list(), is_enumeration, logical(1L))
+  count <- function(n, one, many) paste(n, ngettext(n, one, many))
+  paste(
+    c(
+      paste("Croissant", x@version),
+      count(sum(!is_enum), "record set", "record sets"),
+      if (any(is_enum)) count(sum(is_enum), "enumeration", "enumerations"),
+      count(length(x@distribution), "file", "files")
+    ),
+    collapse = ", "
+  )
+} # /croissant::croissant_counts
 
 
 # %% read_document ----

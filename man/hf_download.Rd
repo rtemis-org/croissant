@@ -21,7 +21,8 @@ contains \code{/} is URL-encoded, as \verb{refs\%2Fconvert\%2Fparquet}.}
 \item{token}{Optional Character: Hugging Face token. \code{NULL} reads
 \code{HF_TOKEN}.}
 
-\item{verbosity}{Integer: Verbosity level; \code{1L} reports downloads.}
+\item{verbosity}{Integer: Verbosity level; \code{1L} reports each file
+downloaded and each file read from the cache.}
 }
 \value{
 Character: Local path of the file, with attribute \code{hf}, the path

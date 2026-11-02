@@ -9,6 +9,14 @@
 Read, write, and inspect Croissant JSON-LD metadata for machine learning
 datasets. \code{\link[=read_croissant]{read_croissant()}} reads a document into a \link{Croissant} object and
 \code{\link[=write_croissant]{write_croissant()}} writes it back.
+
+\code{\link[=record_sets]{record_sets()}}, \code{\link[=enumerations]{enumerations()}}, \code{\link[=fields]{fields()}}, \code{\link[=files]{files()}}, and \code{\link[=about]{about()}}
+return the contents of a document as R values, \code{\link[=issues]{issues()}} the problems
+\code{\link[=validate_croissant]{validate_croissant()}} finds, and \code{\link[=read_record_set]{read_record_set()}}
+returns the records of a record set. The S7 properties of \link{Croissant} and
+the node classes follow the Croissant vocabulary, one property per term, and
+are read and set with \code{@}: \code{x@name}, \code{x@description <- "..."}. An
+assignment is validated by the class.
 }
 \seealso{
 Useful links:
