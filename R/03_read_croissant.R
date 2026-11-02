@@ -306,8 +306,66 @@ node_from_list <- function(x, class_name, log, node) {
   if (length(other) > 0L) {
     args[["other_properties"]] <- other
   }
-  do.call(node_class(class_name), args)
+  new_node(class_name, args)
 } # /croissant::node_from_list
+
+
+# %% new_node ----
+#' Construct a node from its property values
+#'
+#' Returns the object the class constructor returns for `args`, and raises
+#' the constructor's error for an invalid value. Each value in `args` is set
+#' on the class prototype with `prop<-`, which checks it against the
+#' property's class and validator; the properties not in `args` keep the
+#' prototype's defaults, which the constructor has validated.
+#' `valid_implicitly()` skips the object validation that `prop<-` runs after
+#' each assignment, which runs only class validators: a node class that
+#' defines one must be validated here as well. When a check fails,
+#' `set_props()` sets every value and validates the node, as the constructor
+#' does, and raises its error.
+#'
+#' @param class_name Character: Node class name, a name in `.node_terms`.
+#' @param args Named list: Property values.
+#'
+#' @return Node object of class `class_name`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+new_node <- function(class_name, args) {
+  set_args <- function(node) {
+    for (name in names(args)) {
+      prop(node, name) <- args[[name]]
+    }
+    node
+  }
+  out <- tryCatch(
+    valid_implicitly(node_prototype(class_name), set_args),
+    error = function(e) NULL
+  )
+  out %||% do.call(set_props, c(list(node_prototype(class_name)), args))
+} # /croissant::new_node
+
+
+# Prototype node of each class, by class name, filled by `node_prototype()`.
+.prototypes <- new.env(parent = emptyenv())
+
+
+# %% node_prototype ----
+#' Node with every property at its default
+#'
+#' @param class_name Character: Node class name, a name in `.node_terms`.
+#'
+#' @return Node object of class `class_name`, as its constructor returns it
+#' without arguments.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+node_prototype <- function(class_name) {
+  .prototypes[[class_name]] %||%
+    (.prototypes[[class_name]] <- node_class(class_name)())
+} # /croissant::node_prototype
 
 
 # %% read_value ----

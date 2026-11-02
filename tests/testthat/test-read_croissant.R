@@ -249,3 +249,25 @@ test_that("a document read from a path or URL records its location as `base`", {
   )))
   expect_false(any(c("base", "@base") %in% names(json)))
 })
+
+test_that("a node is built as its constructor builds it", {
+  args <- list(
+    id = "rs/x",
+    name = "x",
+    data_type = "sc:Float",
+    source = Source(file_object = "f.csv", extract = Extract(column = "x"))
+  )
+  expect_identical(new_node("Field", args), do.call(Field, args))
+  expect_identical(new_node("Field", list()), Field())
+  nodes <- list(record_set = list(RecordSet(id = "a"), RecordSet(id = "b")))
+  expect_identical(new_node("Croissant", nodes), do.call(Croissant, nodes))
+  error_of <- function(expr) tryCatch(expr, error = conditionMessage)
+  expect_identical(
+    error_of(new_node("Field", list(id = "x", name = character()))),
+    error_of(Field(id = "x", name = character()))
+  )
+  # new_node() runs no class validator.
+  for (cls in names(.node_terms)) {
+    expect_null(node_class(cls)@validator, label = cls)
+  }
+})

@@ -123,51 +123,101 @@ check_croissant <- function(x, log) {
 # %% node_index ----
 #' Index every identified node of a dataset
 #'
+#' Nodes are listed in document order: files, then each record set followed
+#' by its fields, depth first.
+#'
 #' @param x `Croissant` object.
 #'
-#' @return data.frame with one row per node: `id`, `class`, and `parent` (the
-#' `@id` of the record set a field belongs to, `NA` otherwise).
+#' @return List with one element per node in each of `id`, `class`, and
+#' `parent` (the `@id` of the record set a field belongs to, `NA` otherwise),
+#' and two environments keyed by `index_key()`: `row`, the first row of each
+#' `@id`, and `field`, the `@id`s of fields.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 node_index <- function(x) {
-  rows <- list()
-  add <- function(node, parent) {
-    rows[[length(rows) + 1L]] <<- data.frame(
-      id = node@id %||% NA_character_,
-      class = S7_class(node)@name,
-      parent = parent
+  row_of <- function(node, parent) {
+    c(node@id %||% NA_character_, S7_class(node)@name, parent)
+  }
+  field_rows <- function(fields, parent) {
+    unlist(
+      lapply(fields, function(f) {
+        c(list(row_of(f, parent)), field_rows(f@sub_field, parent))
+      }),
+      recursive = FALSE
     )
   }
-  add_fields <- function(fields, parent) {
-    for (f in fields) {
-      add(f, parent)
-      add_fields(f@sub_field, parent)
-    }
-  }
-  for (file in x@distribution) {
-    add(file, NA_character_)
-  }
-  for (rs in x@record_set) {
-    add(rs, NA_character_)
-    add_fields(rs@field, rs@id %||% NA_character_)
-  }
-  if (length(rows) == 0L) {
-    return(data.frame(
-      id = character(),
-      class = character(),
-      parent = character()
-    ))
-  }
-  do.call(rbind, rows)
+  rows <- c(
+    lapply(x@distribution, row_of, parent = NA_character_),
+    unlist(
+      lapply(x@record_set, function(rs) {
+        c(
+          list(row_of(rs, NA_character_)),
+          field_rows(rs@field, rs@id %||% NA_character_)
+        )
+      }),
+      recursive = FALSE
+    )
+  )
+  m <- matrix(as.character(unlist(rows)), ncol = 3L, byrow = TRUE)
+  id <- m[, 1L]
+  class <- m[, 2L]
+  first <- !is.na(id) & !duplicated(id)
+  fields <- unique(id[class == "Field" & !is.na(id)])
+  list(
+    id = id,
+    class = class,
+    parent = m[, 3L],
+    row = list2env(
+      stats::setNames(as.list(which(first)), index_key(id[first])),
+      parent = emptyenv()
+    ),
+    field = list2env(
+      stats::setNames(as.list(rep(TRUE, length(fields))), index_key(fields)),
+      parent = emptyenv()
+    )
+  )
 } # /croissant::node_index
+
+
+# %% index_key ----
+#' Environment key of an `@id` in a node index
+#'
+#' Prefixed so that the empty string, a valid `@id`, is a valid key.
+#'
+#' @param id Character: `@id`s.
+#'
+#' @return Character.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+index_key <- function(id) {
+  paste0("#", id, recycle0 = TRUE)
+} # /croissant::index_key
+
+
+# %% index_row ----
+#' Row of the first node with an `@id`
+#'
+#' @param index List from `node_index()`.
+#' @param id Character scalar: `@id`.
+#'
+#' @return Integer scalar: The row, or `NA` when no node has `id`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+index_row <- function(index, id) {
+  index[["row"]][[index_key(id)]] %||% NA_integer_
+} # /croissant::index_row
 
 
 # %% check_ids ----
 #' Check that `@id`s contain no whitespace and do not repeat
 #'
-#' @param index data.frame from `node_index()`.
+#' @param index List from `node_index()`.
 #' @param log Environment: Issue log from `new_issue_log()`.
 #'
 #' @return `NULL`, invisibly.
@@ -210,7 +260,7 @@ check_ids <- function(index, log) {
 #' Check a `FileObject` or `FileSet`
 #'
 #' @param file `FileObject` or `FileSet` object.
-#' @param index data.frame from `node_index()`.
+#' @param index List from `node_index()`.
 #' @param live Logical: Whether the dataset is a live dataset, whose files
 #' need no checksum.
 #' @param log Environment: Issue log from `new_issue_log()`.
@@ -287,7 +337,7 @@ other_contained_in <- function(file) {
 #' Check a `RecordSet` and its fields
 #'
 #' @param rs `RecordSet` object.
-#' @param index data.frame from `node_index()`.
+#' @param index List from `node_index()`.
 #' @param log Environment: Issue log from `new_issue_log()`.
 #'
 #' @return `NULL`, invisibly.
@@ -397,7 +447,7 @@ check_inline_data <- function(data, field_ids, node, log) {
 #'
 #' @param f `Field` object.
 #' @param rs `RecordSet` object that holds the field.
-#' @param index data.frame from `node_index()`.
+#' @param index List from `node_index()`.
 #' @param log Environment: Issue log from `new_issue_log()`.
 #'
 #' @return `NULL`, invisibly.
@@ -448,8 +498,10 @@ check_field <- function(f, rs, index, log) {
   }
   if (length(f@sub_field) == 0L && is.null(f@data_type) && !has_value) {
     source_field <- if (has_source) f@source@field else NULL
-    field_ids <- index[["id"]][index[["class"]] == "Field"]
-    if (is.null(source_field) || !source_field %in% field_ids) {
+    if (
+      is.null(source_field) ||
+        is.null(index[["field"]][[index_key(source_field)]])
+    ) {
       log_issue(
         log,
         "error",
@@ -496,7 +548,7 @@ check_field <- function(f, rs, index, log) {
 #' Check a `Source`: one target that exists, and valid transforms
 #'
 #' @param s `Source` object.
-#' @param index data.frame from `node_index()`.
+#' @param index List from `node_index()`.
 #' @param node Character: `@id` of the field that holds the source.
 #' @param key Character: Property that holds the source, for messages.
 #' @param log Environment: Issue log from `new_issue_log()`.
@@ -593,7 +645,7 @@ check_transform <- function(t, node, log) {
 #' one and `references` the other.
 #'
 #' @param rs `RecordSet` object.
-#' @param index data.frame from `node_index()`.
+#' @param index List from `node_index()`.
 #' @param node Character: `@id` of the record set.
 #' @param log Environment: Issue log from `new_issue_log()`.
 #'
@@ -611,29 +663,20 @@ check_joins <- function(rs, index, node, log) {
     if (is.null(id)) {
       return(NA_character_)
     }
-    row <- match(id, index[["id"]])
+    row <- index_row(index, id)
     if (is.na(row)) {
       return(NA_character_)
     }
     if (index[["class"]][[row]] == "Field") index[["parent"]][[row]] else id
   }
-  sources <- character()
-  joins <- character()
-  for (f in rs@field) {
-    from <- origin(f@source)
-    to <- origin(f@references)
-    if (!is.na(from)) {
-      sources <- c(sources, from)
-      if (!is.na(to)) {
-        joins <- c(
-          joins,
-          paste(from, to, sep = "\r"),
-          paste(to, from, sep = "\r")
-        )
-      }
-    }
-  }
-  sources <- sort(unique(sources))
+  from <- vapply(rs@field, \(f) origin(f@source), character(1L))
+  to <- vapply(rs@field, \(f) origin(f@references), character(1L))
+  joined <- !is.na(from) & !is.na(to)
+  joins <- c(
+    paste(from[joined], to[joined], sep = "\r"),
+    paste(to[joined], from[joined], sep = "\r")
+  )
+  sources <- sort(unique(from[!is.na(from)]))
   if (length(sources) < 2L) {
     return(invisible(NULL))
   }
@@ -746,7 +789,7 @@ node_ref <- function(x) {
 #' Log a reference to a node that does not exist
 #'
 #' @param ref Character: Referenced `@id`.
-#' @param index data.frame from `node_index()`.
+#' @param index List from `node_index()`.
 #' @param node Character: `@id` of the referencing node.
 #' @param key Character: Property that holds the reference.
 #' @param log Environment: Issue log from `new_issue_log()`.
@@ -757,7 +800,7 @@ node_ref <- function(x) {
 #' @keywords internal
 #' @noRd
 check_reference <- function(ref, index, node, key, log) {
-  if (!ref %in% index[["id"]]) {
+  if (is.na(index_row(index, ref))) {
     log_issue(
       log,
       "error",

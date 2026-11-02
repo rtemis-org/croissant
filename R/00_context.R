@@ -204,7 +204,7 @@ compact_key <- function(iri) {
   if (startsWith(iri, "@")) {
     return(iri)
   }
-  by_iri <- .term_by_iri()
+  by_iri <- .term_by_iri
   term <- by_iri[iri]
   if (!is.na(term)) {
     return(unname(term))
@@ -245,7 +245,7 @@ compact_value <- function(iri) {
 } # /croissant::compact_value
 
 
-# %% .term_by_iri ----
+# %% term_by_iri ----
 #' Croissant terms keyed by their absolute IRI
 #'
 #' @return Named character vector: Term names, named by IRI.
@@ -253,7 +253,7 @@ compact_value <- function(iri) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-.term_by_iri <- function() {
+term_by_iri <- function() {
   terms <- .all_terms()
   ids <- vapply(
     terms,
@@ -269,7 +269,7 @@ compact_value <- function(iri) {
   )
   keep <- !is.na(ids)
   stats::setNames(names(terms)[keep], ids[keep])
-} # /croissant::.term_by_iri
+} # /croissant::term_by_iri
 
 
 # %% .all_terms ----
@@ -283,6 +283,11 @@ compact_value <- function(iri) {
 .all_terms <- function() {
   c(.croissant_terms, .croissant_terms_1_1)
 } # /croissant::.all_terms
+
+
+# Croissant terms keyed by their absolute IRI, built once when the package is
+# built.
+.term_by_iri <- term_by_iri()
 
 
 # %% context_terms ----

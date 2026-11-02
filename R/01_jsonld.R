@@ -109,7 +109,13 @@ normalize_document <- function(doc, log) {
     terms <- context_terms(.compaction_context())
   }
   doc[["@context"]] <- NULL
-  doc <- canonicalize_node(doc, terms, log, node = "Croissant")
+  doc <- canonicalize_node(
+    doc,
+    terms,
+    log,
+    node = "Croissant",
+    memo = new.env(parent = emptyenv())
+  )
   list(doc = doc, version = document_version(doc, log))
 } # /croissant::normalize_document
 
@@ -228,29 +234,39 @@ has_nested_context <- function(x, root = TRUE) {
 #' @param terms Named list: Term definitions of the document's context.
 #' @param log Environment: Issue log from `new_issue_log()`.
 #' @param node Character: Path of the enclosing node, for issues.
+#' @param memo Environment: Canonical forms already computed for `terms`,
+#' shared by every node of one document; see `memo_map()`.
 #'
 #' @return `x` with canonical keys and IRI values.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-canonicalize_node <- function(x, terms, log, node) {
+canonicalize_node <- function(x, terms, log, node, memo) {
   if (!is.list(x)) {
     return(x)
   }
   if (is.null(names(x))) {
-    return(lapply(x, canonicalize_node, terms = terms, log = log, node = node))
+    return(lapply(
+      x,
+      canonicalize_node,
+      terms = terms,
+      log = log,
+      node = node,
+      memo = memo
+    ))
   }
   if (is_string(x[["@id"]])) {
     node <- x[["@id"]]
   }
-  keys <- vapply(
+  keys <- memo_map(
+    memo,
+    "keys",
     names(x),
-    \(k) compact_key(expand_iri(k, terms = terms)),
-    character(1L)
+    \(k) compact_key(expand_iri(k, terms = terms))
   )
   undefined <- names(x)[
-    keys == paste0("sc:", names(x)) & !keys %in% .alt_keys()
+    keys == paste0("sc:", names(x)) & !keys %in% .alt_keys
   ]
   for (k in undefined) {
     log_issue(
@@ -286,21 +302,52 @@ canonicalize_node <- function(x, terms, log, node) {
   x <- x[keep]
   keys <- keys[keep]
   out <- vector("list", length(x))
+  is_iri <- keys %in% c("@type", "dataType")
+  is_literal <- keys %in% c("data", "examples", "@value", "@language")
   for (i in seq_along(x)) {
-    key <- keys[[i]]
     value <- x[[i]]
-    if (key %in% c("@type", "dataType")) {
+    if (is_iri[[i]]) {
       value <- map_strings(value, \(v) {
-        compact_value(expand_iri(v, terms = terms))
+        memo_map(memo, "values", v, \(s) compact_value(expand_iri(s, terms)))
       })
-    } else if (!key %in% c("data", "examples", "@value", "@language")) {
-      value <- canonicalize_node(value, terms, log, node)
+    } else if (!is_literal[[i]]) {
+      value <- canonicalize_node(value, terms, log, node, memo)
     }
     if (!is.null(value)) out[[i]] <- value
   }
   names(out) <- keys
   out
 } # /croissant::canonicalize_node
+
+
+# %% memo_map ----
+#' Map strings through a function, computing each distinct string once
+#'
+#' Results are kept in `memo[[slot]]`, a character vector named by input, and
+#' reused by later calls with the same `memo` and `slot`. `f` must depend on
+#' its argument only, for the lifetime of `memo`.
+#'
+#' @param memo Environment: Results of earlier calls.
+#' @param slot Character: Name of the result vector in `memo`.
+#' @param x Character: Strings to map.
+#' @param f Function: Maps one string to a character scalar.
+#'
+#' @return Character: `f` applied to each element of `x`, unnamed.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+memo_map <- function(memo, slot, x, f) {
+  known <- memo[[slot]] %||% character()
+  hit <- match(x, names(known))
+  if (anyNA(hit)) {
+    miss <- unique(x[is.na(hit)])
+    known <- c(known, stats::setNames(vapply(miss, f, character(1L)), miss))
+    memo[[slot]] <- known
+    hit <- match(x, names(known))
+  }
+  unname(known[hit])
+} # /croissant::memo_map
 
 
 # %% map_strings ----

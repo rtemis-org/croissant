@@ -897,19 +897,10 @@ Croissant <- new_class(
 )
 
 
-# %% .alt_keys ----
-#' Alternative keys of the typed properties
-#'
-#' @return Character: Every `alt` key in `.node_terms`.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-.alt_keys <- function() {
-  unique(unlist(lapply(.node_terms, function(spec) {
-    lapply(spec[["terms"]], \(t) t[["alt"]])
-  })))
-} # /croissant::.alt_keys
+# Alternative keys of the typed properties: every `alt` key in `.node_terms`.
+.alt_keys <- unique(unlist(lapply(.node_terms, function(spec) {
+  lapply(spec[["terms"]], \(t) t[["alt"]])
+})))
 
 
 # %% is_node ----

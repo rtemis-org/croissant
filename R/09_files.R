@@ -35,26 +35,51 @@ new_load_context <- function(x, base, cache_dir, verbosity, token = "") {
   ctx[["tables"]] <- new.env(parent = emptyenv())
   ctx[["dirs"]] <- new.env(parent = emptyenv())
   ctx[["hf"]] <- new.env(parent = emptyenv())
+  ctx[["leaves"]] <- new.env(parent = emptyenv())
   files <- list()
   for (file in x@distribution) {
     if (!is.null(file@id)) files[[file@id]] <- file
   }
   ctx[["files"]] <- files
-  field_rs <- character()
-  add_fields <- function(fields, rs_id) {
-    for (f in fields) {
-      if (!is.null(f@id)) {
-        field_rs[[f@id]] <<- rs_id
-      }
-      add_fields(f@sub_field, rs_id)
-    }
+  # `@id` of every field, depth first.
+  field_ids <- function(fields) {
+    unlist(lapply(fields, function(f) {
+      sub <- f@sub_field
+      if (is.null(sub)) f@id else c(f@id, field_ids(sub))
+    }))
   }
-  for (rs in x@record_set) {
-    add_fields(rs@field, rs@id %||% "")
-  }
-  ctx[["field_rs"]] <- field_rs
+  by_rs <- lapply(x@record_set, \(rs) as.character(field_ids(rs@field)))
+  ids <- unlist(by_rs, use.names = FALSE)
+  rs_ids <- rep(
+    vapply(x@record_set, \(rs) rs@id %||% "", character(1L)),
+    lengths(by_rs)
+  )
+  # A later field with the same `@id` takes its place. An empty `@id` names
+  # no field.
+  keep <- nzchar(ids)
+  ctx[["field_rs"]] <- list2env(
+    stats::setNames(as.list(rs_ids[keep]), index_key(ids[keep])),
+    parent = emptyenv()
+  )
   ctx
 } # /croissant::new_load_context
+
+
+# %% field_record_set ----
+#' Record set of a field
+#'
+#' @param ctx Environment: Load context from `new_load_context()`.
+#' @param id Character scalar: Field `@id`.
+#'
+#' @return Character scalar: The `@id` of the record set that holds the
+#' field, `""` for a record set without `@id`, or `NA` when no field has `id`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+field_record_set <- function(ctx, id) {
+  ctx[["field_rs"]][[index_key(id)]] %||% NA_character_
+} # /croissant::field_record_set
 
 
 # %% local_file ----
@@ -646,6 +671,9 @@ glob_to_regex <- function(glob) {
 #'
 #' @param path Character: Local file path.
 #' @param formats Character: Encoding formats of the file.
+#' @param columns Optional Character: Columns to read from a Parquet file.
+#' When the file has every one of them, only these are read, in this order;
+#' otherwise, and when `NULL`, every column is read.
 #'
 #' @return List with `kind` (`"table"`, `"json"`, or `"rows"`) and `data`: a
 #' data.table, a parsed JSON document, or a list of parsed JSON Lines rows.
@@ -653,7 +681,7 @@ glob_to_regex <- function(glob) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-read_content <- function(path, formats) {
+read_content <- function(path, formats, columns = NULL) {
   formats <- tolower(formats %||% character())
   if (
     any(formats %in% c("text/csv", "text/tab-separated-values", "text/plain"))
@@ -706,7 +734,8 @@ read_content <- function(path, formats) {
     )
   ) {
     check_dependencies("arrow")
-    df <- as.data.frame(arrow::read_parquet(path))
+    df <- if (!is.null(columns)) read_parquet_columns(path, columns)
+    df <- df %||% as.data.frame(arrow::read_parquet(path))
     # A struct column reads as a data.frame column; each value becomes a
     # named list, as a JSON object, so a jsonPath transform can select from
     # it.
@@ -714,7 +743,7 @@ read_content <- function(path, formats) {
       inner <- df[[col]]
       df[[col]] <- lapply(seq_len(nrow(inner)), \(i) lapply(inner, `[[`, i))
     }
-    return(list(kind = "table", data = data.table::as.data.table(df)))
+    return(list(kind = "table", data = data.table::setDT(df)))
   }
   abort(
     "read_record_set() reads columns from CSV, TSV, JSON, JSON Lines, and ",
@@ -731,6 +760,38 @@ read_content <- function(path, formats) {
     )
   )
 } # /croissant::read_content
+
+
+# %% read_parquet_columns ----
+#' Read named columns of a Parquet file
+#'
+#' Reads as `arrow::read_parquet()` does with `col_select`, through the file's
+#' reader, so that only the named columns are read and converted.
+#'
+#' @param path Character: Local file path.
+#' @param columns Character: Column names.
+#'
+#' @return data.frame with the columns in the order of `columns`, or `NULL`
+#' when the file lacks one of them or cannot be read this way.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+read_parquet_columns <- function(path, columns) {
+  tryCatch(
+    {
+      file <- arrow::mmap_open(path)
+      on.exit(file[["close"]](), add = TRUE)
+      reader <- arrow::ParquetFileReader[["create"]](file)
+      at <- match(columns, names(reader[["GetSchema"]]()))
+      if (anyNA(at)) {
+        return(NULL)
+      }
+      as.data.frame(reader[["ReadTable"]](at - 1L))
+    },
+    error = function(e) NULL
+  )
+} # /croissant::read_parquet_columns
 
 
 # Strings that pandas reads as missing, so that CSV values compare with

@@ -174,7 +174,7 @@ read_record_set <- function(
 # %% table_output ----
 #' A data.table in the class `output` names
 #'
-#' @param x data.table.
+#' @param x data.table, owned by the caller; converted in place.
 #' @param output Character \{"data.table", "tibble", "data.frame", "arrow"\}:
 #' Class of the result. `"tibble"` requires the 'tibble' package and `"arrow"`
 #' the 'arrow' package.
@@ -191,9 +191,9 @@ table_output <- function(x, output) {
   switch(
     output,
     data.table = x,
-    data.frame = as.data.frame(x),
-    tibble = tibble::as_tibble(x),
-    arrow = arrow::as_arrow_table(as.data.frame(x))
+    data.frame = data.table::setDF(x),
+    tibble = tibble::as_tibble(data.table::setDF(x)),
+    arrow = arrow::as_arrow_table(data.table::setDF(x))
   )
 } # /croissant::table_output
 
@@ -334,24 +334,23 @@ column_names <- function(rs, ids) {
 #' @keywords internal
 #' @noRd
 enumeration_factors <- function(ctx, rs, tab) {
-  for (leaf in leaf_fields(rs@field)) {
+  for (leaf in record_set_leaves(ctx, rs)) {
     f <- leaf[["field"]]
     ref <- f@references
+    if (is.null(ref) || is.null(ref@field)) {
+      next
+    }
     values <- tab[[f@id]]
-    if (
-      is.null(ref) ||
-        is.null(ref@field) ||
-        !(is.character(values) || is.factor(values))
-    ) {
+    if (!(is.character(values) || is.factor(values))) {
       next
     }
     ordered <- is.ordered(values)
     values <- as.character(values)
-    enum_id <- ctx[["field_rs"]][ref@field]
+    enum_id <- field_record_set(ctx, ref@field)
     if (is.na(enum_id)) {
       next
     }
-    enum <- find_record_set(ctx[["x"]], unname(enum_id))
+    enum <- find_record_set(ctx[["x"]], enum_id)
     if (!"sc:Enumeration" %in% enum@data_type) {
       next
     }
@@ -397,20 +396,38 @@ enumeration_factors <- function(ctx, rs, tab) {
 #' @noRd
 record_set_table <- function(ctx, rs, n_max = Inf) {
   key <- rs@id %||% node_ref(rs)
-  if (!is.null(ctx[["tables"]][[key]])) {
-    return(utils::head(ctx[["tables"]][[key]], n_max))
+  out <- ctx[["tables"]][[key]]
+  if (is.null(out)) {
+    leaves <- record_set_leaves(ctx, rs)
+    out <- if (!is.null(rs@data)) {
+      inline_table(rs, leaves)
+    } else {
+      sourced_table(ctx, rs, leaves, n_max)
+    }
+    if (is.infinite(n_max)) {
+      ctx[["tables"]][[key]] <- out
+    }
   }
-  leaves <- leaf_fields(rs@field)
-  out <- if (!is.null(rs@data)) {
-    inline_table(rs, leaves)
-  } else {
-    sourced_table(ctx, rs, leaves, n_max)
-  }
-  if (is.infinite(n_max)) {
-    ctx[["tables"]][[key]] <- out
-  }
-  utils::head(out, n_max)
+  if (nrow(out) > n_max) utils::head(out, n_max) else out
 } # /croissant::record_set_table
+
+
+# %% record_set_leaves ----
+#' Leaf fields of a record set, computed once per load context
+#'
+#' @param ctx Environment: Load context from `new_load_context()`.
+#' @param rs `RecordSet` object.
+#'
+#' @return List from `leaf_fields()`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+record_set_leaves <- function(ctx, rs) {
+  key <- rs@id %||% node_ref(rs)
+  ctx[["leaves"]][[key]] %||%
+    (ctx[["leaves"]][[key]] <- leaf_fields(rs@field))
+} # /croissant::record_set_leaves
 
 
 # %% leaf_fields ----
@@ -475,39 +492,23 @@ inline_table <- function(rs, leaves) {
 #' @keywords internal
 #' @noRd
 sourced_table <- function(ctx, rs, leaves, n_max = Inf) {
-  origins <- list()
-  for (leaf in leaves) {
-    s <- leaf[["field"]]@source
-    if (is.null(s)) {
-      next
-    }
-    o <- source_origin(ctx, s)
-    if (is.null(origins[[o[["key"]]]])) {
-      origins[[o[["key"]]]] <- c(o, list(sources = list()))
-    }
-    origins[[o[["key"]]]][["sources"]] <- c(
-      origins[[o[["key"]]]][["sources"]],
-      list(s)
-    )
-  }
-  # A join adds the origin a field `references`.
-  for (leaf in leaves) {
-    r <- leaf[["field"]]@references
-    if (is.null(r) || is.null(leaf[["field"]]@source)) {
-      next
-    }
-    o <- source_origin(ctx, r)
-    if (is.null(origins[[o[["key"]]]])) {
-      origins[[o[["key"]]]] <- c(o, list(sources = list()))
-    }
-    origins[[o[["key"]]]][["sources"]] <- c(
-      origins[[o[["key"]]]][["sources"]],
-      list(r)
-    )
-  }
+  fields <- lapply(leaves, \(l) l[["field"]])
+  has_source <- !vapply(fields, \(f) is.null(f@source), logical(1L))
+  # Each field's source, then, for a join, the origin a field `references`.
+  sources <- c(
+    lapply(fields[has_source], \(f) f@source),
+    drop_null(lapply(fields[has_source], \(f) f@references))
+  )
+  found <- lapply(sources, \(s) source_origin(ctx, s))
+  keys <- vapply(found, \(o) o[["key"]], character(1L))
+  first <- which(!duplicated(keys))
+  origins <- lapply(first, function(i) {
+    c(found[[i]], list(sources = sources[keys == keys[[i]]]))
+  })
+  names(origins) <- keys[first]
   if (length(origins) == 0L) {
     n <- 1L
-    tab <- data.table::data.table(.row = 1L)
+    joined <- NULL
   } else {
     # Only the left origin is limited: a join keeps every left row, so its
     # first `n_max` rows give the first `n_max` records.
@@ -515,33 +516,44 @@ sourced_table <- function(ctx, rs, leaves, n_max = Inf) {
       origin_table(ctx, origins[[i]], if (i == 1L) n_max else Inf)
     })
     names(tables) <- names(origins)
-    tab <- join_origins(ctx, rs, leaves, origins, tables)
-    n <- nrow(tab)
+    joined <- join_origins(ctx, rs, leaves, tables)
+    n <- joined[["n"]]
   }
-  cols <- lapply(leaves, function(leaf) {
+  col_of <- character(length(leaves))
+  col_of[has_source] <- vapply(
+    seq_len(sum(has_source)),
+    \(i) source_column(ctx, sources[[i]], found[[i]]),
+    character(1L)
+  )
+  wanted <- unique(col_of[has_source])
+  values_of <- joined_columns(joined, wanted)
+  col_pos <- match(col_of, wanted)
+  cols <- lapply(seq_along(leaves), function(i) {
+    leaf <- leaves[[i]]
     f <- leaf[["field"]]
-    if (is.null(f@source)) {
+    s <- f@source
+    if (is.null(s)) {
       return(rep(list(f@value), n) |> cast_values(f, leaf[["repeated"]]))
     }
-    col <- source_column(ctx, f@source)
-    if (!col %in% names(tab)) {
+    col <- col_of[[i]]
+    if (!values_of[["present"]][[col_pos[[i]]]]) {
       abort(
         "The field \"",
         f@id,
         "\" reads ",
         sub("^[^|]*\\|", "", col),
         ", which its source does not have. Available: ",
-        paste(sub("^[^|]*\\|", "", names(tab)), collapse = ", "),
+        paste(sub("^[^|]*\\|", "", joined_names(joined)), collapse = ", "),
         ".",
         class = c("croissant_record_error", "rtemis_input_error")
       )
     }
-    values <- apply_transforms(tab[[col]], f@source@transform)
-    property <- if (is.null(f@source@extract)) {
-      NULL
-    } else {
-      f@source@extract@file_property
-    }
+    values <- apply_transforms(
+      values_of[["columns"]][[col_pos[[i]]]],
+      s@transform
+    )
+    e <- s@extract
+    property <- if (is.null(e)) NULL else e@file_property
     if (identical(property, "content") && is_text_type(f)) {
       values <- vapply(values, read_text_file, character(1L))
     }
@@ -575,7 +587,11 @@ source_origin <- function(ctx, s) {
   if (!is.null(file)) {
     return(list(key = paste0("file:", id), type = "file", node = file))
   }
-  rs_id <- if (!is.null(s@field)) ctx[["field_rs"]][s@field] else s@record_set
+  rs_id <- if (!is.null(s@field)) {
+    field_record_set(ctx, s@field)
+  } else {
+    s@record_set
+  }
   if (is.na(rs_id) || is.null(rs_id)) {
     abort(
       "A source names \"",
@@ -598,14 +614,14 @@ source_origin <- function(ctx, s) {
 #'
 #' @param ctx Environment: Load context from `new_load_context()`.
 #' @param s `Source` object.
+#' @param o List: Origin of `s`, from `source_origin()`.
 #'
 #' @return Character scalar.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-source_column <- function(ctx, s) {
-  o <- source_origin(ctx, s)
+source_column <- function(ctx, s, o = source_origin(ctx, s)) {
   if (o[["type"]] == "record_set") {
     return(s@field)
   }
@@ -639,8 +655,10 @@ source_column <- function(ctx, s) {
 #' @keywords internal
 #' @noRd
 origin_table <- function(ctx, o, n_max = Inf) {
+  # Origin tables are read, never modified, so a record set origin is the
+  # table cached in `ctx`.
   if (o[["type"]] == "record_set") {
-    return(data.table::copy(record_set_table(ctx, o[["node"]])))
+    return(record_set_table(ctx, o[["node"]]))
   }
   node <- o[["node"]]
   files <- if (S7_inherits(node, FileSet)) {
@@ -676,7 +694,7 @@ origin_table <- function(ctx, o, n_max = Inf) {
   if (length(columns) > 0L || length(paths) > 0L) {
     tab <- read_files(function(i) {
       path <- file_path_at(ctx, files, i)
-      content <- read_content(path, node@encoding_format)
+      content <- read_content(path, node@encoding_format, columns)
       part <- content_table(content, columns, paths)
       part[["@filename"]] <- rep(files[["filename"]][[i]], nrow(part))
       part[["@filepath"]] <- rep(path, nrow(part))
@@ -736,7 +754,7 @@ origin_table <- function(ctx, o, n_max = Inf) {
 content_table <- function(content, columns, paths) {
   data <- content[["data"]]
   if (content[["kind"]] == "table") {
-    tab <- data.table::as.data.table(data)
+    tab <- data
     for (p in paths) {
       abort(
         "A JSONPath (",
@@ -790,19 +808,32 @@ content_table <- function(content, columns, paths) {
 #' other, as in mlcroissant's `Join` operation: the field's transforms apply
 #' to the left key, keys compare as strings, and every left row is kept.
 #'
+#' The joined table is held as the origin tables and, for each origin, the
+#' row of it that each joined row takes; `joined_columns()` builds the columns
+#' a record set reads. A column name of the joined table names the column of
+#' the first origin, in join order, that has it. A join on an empty left key
+#' has no rows and adds no columns.
+#'
 #' @param ctx Environment: Load context from `new_load_context()`.
 #' @param rs `RecordSet` object.
 #' @param leaves List from `leaf_fields()`.
-#' @param origins List: Origins, named by key.
 #' @param tables List: Origin tables, named by key.
 #'
-#' @return data.table.
+#' @return List with `tables`; `rows`, the row of each origin table taken by
+#' each joined row, by origin key, `NULL` for every row in order; `columns`,
+#' the keys of the origins whose columns the joined table has, in join order;
+#' and `n`, the number of joined rows.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-join_origins <- function(ctx, rs, leaves, origins, tables) {
-  tab <- tables[[1L]]
+join_origins <- function(ctx, rs, leaves, tables) {
+  out <- list(
+    tables = tables,
+    rows = stats::setNames(vector("list", length(tables)), names(tables)),
+    columns = names(tables)[[1L]],
+    n = nrow(tables[[1L]])
+  )
   joined <- names(tables)[[1L]]
   pending <- setdiff(names(tables), joined)
   while (length(pending) > 0L) {
@@ -815,13 +846,22 @@ join_origins <- function(ctx, rs, leaves, origins, tables) {
       left <- source_origin(ctx, f@source)[["key"]]
       right <- source_origin(ctx, f@references)[["key"]]
       if (left %in% joined && right %in% pending) {
+        l_col <- joined_columns(out, source_column(ctx, f@source))
         l_key <- apply_transforms(
-          tab[[source_column(ctx, f@source)]],
+          l_col[["columns"]][[1L]],
           f@source@transform
         )
-        r_tab <- tables[[right]]
-        r_key <- r_tab[[source_column(ctx, f@references)]]
-        tab <- left_join(tab, r_tab, key_string(l_key), key_string(r_key))
+        r_key <- tables[[right]][[source_column(ctx, f@references)]]
+        m <- join_rows(key_string(l_key), key_string(r_key))
+        out[["rows"]][joined] <- lapply(
+          out[["rows"]][joined],
+          \(r) if (is.null(r)) m[["left"]] else r[m[["left"]]]
+        )
+        out[["rows"]][[right]] <- m[["right"]]
+        out[["n"]] <- length(m[["left"]])
+        if (length(l_key) > 0L) {
+          out[["columns"]] <- c(out[["columns"]], right)
+        }
         joined <- c(joined, right)
         pending <- setdiff(pending, right)
         progressed <- TRUE
@@ -840,34 +880,100 @@ join_origins <- function(ctx, rs, leaves, origins, tables) {
       )
     }
   }
-  tab
+  out
 } # /croissant::join_origins
 
 
-# %% left_join ----
-#' Left join two tables on key vectors
+# %% join_rows ----
+#' Rows of a left join on key vectors
 #'
-#' @param left data.table.
-#' @param right data.table.
 #' @param l_key Character: Key of each left row.
 #' @param r_key Character: Key of each right row.
 #'
-#' @return data.table: Every left row, in order, with the columns of each
-#' matching right row; a left row with several matches repeats.
+#' @return List with `left` and `right`, integer: For every left row, in
+#' order, the left row and each matching right row; a left row with several
+#' matches repeats, and one with none, or with a missing key, has right row
+#' `NA`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-left_join <- function(left, right, l_key, r_key) {
-  pairs <- lapply(seq_along(l_key), function(i) {
-    m <- which(r_key == l_key[[i]] & !is.na(r_key))
-    if (length(m) == 0L || is.na(l_key[[i]])) NA_integer_ else m
+join_rows <- function(l_key, r_key) {
+  present <- which(!is.na(r_key))
+  groups <- split(
+    present,
+    factor(r_key[present], levels = unique(r_key[present]))
+  )
+  pairs <- unname(groups)[match(l_key, names(groups))]
+  pairs[lengths(pairs) == 0L] <- list(NA_integer_)
+  list(
+    left = rep(seq_along(pairs), lengths(pairs)),
+    right = as.integer(unlist(pairs))
+  )
+} # /croissant::join_rows
+
+
+# %% joined_names ----
+#' Column names of a joined table
+#'
+#' @param joined List from `join_origins()`.
+#'
+#' @return Character: The names, in join order, each once.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+joined_names <- function(joined) {
+  unique(unlist(
+    lapply(joined[["columns"]], \(o) names(joined[["tables"]][[o]])),
+    use.names = FALSE
+  ))
+} # /croissant::joined_names
+
+
+# %% joined_columns ----
+#' Columns of a joined table
+#'
+#' Each origin's table is subset once, to the joined rows and the columns
+#' requested from it.
+#'
+#' @param joined Optional List from `join_origins()`.
+#' @param names Character: Column names.
+#'
+#' @return List with `columns`, the column of each name in `names`, `NULL`
+#' for a name the joined table does not have, and `present`, logical, whether
+#' it has each.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+joined_columns <- function(joined, names) {
+  columns <- vector("list", length(names))
+  present <- rep(FALSE, length(names))
+  if (is.null(joined) || length(names) == 0L) {
+    return(list(columns = columns, present = present))
+  }
+  origin_names <- lapply(joined[["columns"]], \(o) {
+    names(joined[["tables"]][[o]])
   })
-  li <- rep(seq_along(pairs), lengths(pairs))
-  ri <- unlist(pairs)
-  right <- right[, setdiff(names(right), names(left)), with = FALSE]
-  cbind(left[li], right[ri])
-} # /croissant::left_join
+  all <- unlist(origin_names, use.names = FALSE)
+  owner <- rep(joined[["columns"]], lengths(origin_names))
+  first <- !duplicated(all)
+  owner_of <- owner[first][match(names, all[first])]
+  present <- !is.na(owner_of)
+  for (o in unique(owner_of[present])) {
+    want <- which(present & owner_of == o)
+    tab <- joined[["tables"]][[o]]
+    rows <- joined[["rows"]][[o]]
+    if (!is.null(rows)) {
+      tab <- tab[rows, names[want], with = FALSE]
+    }
+    columns[want] <- lapply(match(names[want], names(tab)), \(j) {
+      .subset2(tab, j)
+    })
+  }
+  list(columns = columns, present = present)
+} # /croissant::joined_columns
 
 
 # %% key_string ----
