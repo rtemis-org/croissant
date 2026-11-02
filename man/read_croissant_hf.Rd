@@ -14,8 +14,9 @@ read_croissant_hf(repo, token = NULL, verbosity = 1L)
 private datasets. \code{NULL} reads \code{HF_TOKEN}.}
 
 \item{verbosity}{Integer: Verbosity level; \code{1L} reports the dataset before
-reading and the dataset name and counts of record sets, enumerations, and
-files after.}
+reading, the dataset name and counts of record sets, enumerations, and
+files after, and a \code{croissant.json} file in the repository, which takes one
+more request to the Hub.}
 }
 \value{
 \code{Croissant} object.
@@ -32,6 +33,13 @@ The Hub generates the metadata after its dataset viewer has processed the
 dataset, a few minutes after an upload, and only for datasets the viewer
 can read. Before then, the error has class \code{croissant_hf_metadata_error}
 and names the repository's own \code{croissant.json} files, when it has any.
+
+Croissant metadata that a dataset's authors write and store in its
+repository is a separate document, which describes the repository's own
+files. \code{\link[=read_croissant]{read_croissant()}} reads it from its \verb{hf://datasets/} path, which can
+name a tag or commit. At verbosity \code{1L}, \code{read_croissant_hf()} names a file
+\code{croissant.json} in the repository. The documentation site compares the
+two documents: \url{https://docs.rtemis.org/r/croissant/huggingface.html}.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}

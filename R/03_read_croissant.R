@@ -98,6 +98,9 @@ read_croissant <- function(x, verbosity = 1L) {
     croissant_counts(out),
     verbosity = verbosity
   )
+  if (is_hf(x) && is.null(parse_hf(x)[["file"]])) {
+    note_own_croissant(parse_hf(x)[["repo"]], hf_token(), verbosity)
+  }
   out
 } # /croissant::read_croissant
 

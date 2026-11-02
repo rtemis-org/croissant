@@ -215,16 +215,69 @@ find_record_set <- function(x, record_set) {
       return(rs)
     }
   }
-  ids <- vapply(x@record_set, \(rs) node_ref(rs), character(1L))
+  name <- first_text(x@name)
+  dataset <- if (is.null(name)) {
+    "The dataset"
+  } else {
+    paste0("The dataset \"", name, "\"")
+  }
+  if (length(x@record_set) == 0L) {
+    abort(
+      dataset,
+      " has no record sets, so it has no record set \"",
+      record_set,
+      "\" to read.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
+  keys <- function(nodes) {
+    vapply(nodes, node_ref, character(1L), USE.NAMES = FALSE)
+  }
+  data <- keys(record_sets(x))
+  enums <- keys(enumerations(x))
   abort(
-    "The dataset has no record set \"",
+    dataset,
+    " has no record set \"",
     record_set,
-    "\". Its record sets are: ",
-    paste(ids, collapse = ", "),
-    ".",
+    "\". ",
+    if (length(data) > 0L) {
+      paste0("Its record sets are ", and_list(data), ". ")
+    },
+    if (length(enums) > 0L) {
+      paste0(
+        "Its enumeration record sets are ",
+        and_list(enums),
+        ". "
+      )
+    },
+    "Name one by its @id or name.",
     class = c("rtemis_value_error", "rtemis_input_error")
   )
 } # /croissant::find_record_set
+
+
+# %% and_list ----
+#' Items as a list in prose
+#'
+#' @param x Character: Items.
+#' @param max Integer: Most items named; the rest are counted.
+#'
+#' @return Character scalar: `"a"`, `"a and b"`, or `"a, b, and c"`, with
+#' items beyond `max` counted as `"<n> more"`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+and_list <- function(x, max = 10L) {
+  if (length(x) > max) {
+    x <- c(x[seq_len(max)], paste(length(x) - max, "more"))
+  }
+  n <- length(x)
+  if (n <= 2L) {
+    return(paste(x, collapse = " and "))
+  }
+  paste0(paste(x[-n], collapse = ", "), ", and ", x[[n]])
+} # /croissant::and_list
 
 
 # %% column_names ----

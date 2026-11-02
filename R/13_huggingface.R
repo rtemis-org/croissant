@@ -267,13 +267,7 @@ hf_croissant <- function(repo, token) {
   if (!is.null(doc[["recordSet"]]) || !is.null(doc[["conformsTo"]])) {
     return(doc)
   }
-  own <- tryCatch(
-    {
-      files <- hf_revision(repo, "main", token)[["files"]][["rfilename"]]
-      files[grepl("(^|/)croissant\\.json$", files)]
-    },
-    error = function(e) character()
-  )
+  own <- hf_own_croissant(repo, token)
   abort(
     "The Hugging Face Hub has no Croissant metadata for `",
     repo,
@@ -300,6 +294,62 @@ hf_croissant <- function(repo, token) {
     class = c("croissant_hf_metadata_error", "rtemis_input_error")
   )
 } # /croissant::hf_croissant
+
+
+# %% hf_own_croissant ----
+#' Croissant files a dataset repository holds
+#'
+#' @param repo Character: `<owner>/<name>`.
+#' @param token Character: Token, or `""`.
+#'
+#' @return Character: Paths of the files named `croissant.json` in the `main`
+#' listing; empty when there is none or the listing fails.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+hf_own_croissant <- function(repo, token) {
+  tryCatch(
+    {
+      files <- hf_revision(repo, "main", token)[["files"]][["rfilename"]]
+      files[grepl("(^|/)croissant\\.json$", files)]
+    },
+    error = function(e) character()
+  )
+} # /croissant::hf_own_croissant
+
+
+# %% note_own_croissant ----
+#' Report a repository's own Croissant files
+#'
+#' @param repo Character: `<owner>/<name>`.
+#' @param token Character: Token, or `""`.
+#' @param verbosity Integer: Verbosity level; the listing is requested only
+#' above 0.
+#'
+#' @return `NULL`, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+note_own_croissant <- function(repo, token, verbosity) {
+  if (verbosity < 1L) {
+    return(invisible(NULL))
+  }
+  own <- hf_own_croissant(repo, token)
+  if (length(own) > 0L) {
+    info(
+      "The repository also holds Croissant metadata of its own: ",
+      "read_croissant(\"hf://datasets/",
+      repo,
+      "/",
+      own[[1L]],
+      "\")",
+      verbosity = verbosity
+    )
+  }
+  invisible(NULL)
+} # /croissant::note_own_croissant
 
 
 # %% hf_revision ----
@@ -651,13 +701,21 @@ hf_download <- function(
 #' can read. Before then, the error has class `croissant_hf_metadata_error`
 #' and names the repository's own `croissant.json` files, when it has any.
 #'
+#' Croissant metadata that a dataset's authors write and store in its
+#' repository is a separate document, which describes the repository's own
+#' files. [read_croissant()] reads it from its `hf://datasets/` path, which can
+#' name a tag or commit. At verbosity `1L`, `read_croissant_hf()` names a file
+#' `croissant.json` in the repository. The documentation site compares the
+#' two documents: <https://docs.rtemis.org/r/croissant/huggingface.html>.
+#'
 #' @param repo Character: Dataset, as `<owner>/<name>` or
 #' `hf://datasets/<owner>/<name>`.
 #' @param token Optional Character: Hugging Face token, needed for gated and
 #' private datasets. `NULL` reads `HF_TOKEN`.
 #' @param verbosity Integer: Verbosity level; `1L` reports the dataset before
-#' reading and the dataset name and counts of record sets, enumerations, and
-#' files after.
+#' reading, the dataset name and counts of record sets, enumerations, and
+#' files after, and a `croissant.json` file in the repository, which takes one
+#' more request to the Hub.
 #'
 #' @return `Croissant` object.
 #'
@@ -700,5 +758,6 @@ read_croissant_hf <- function(repo, token = NULL, verbosity = 1L) {
     croissant_counts(out),
     verbosity = verbosity
   )
+  note_own_croissant(repo, hf_token(token), verbosity)
   out
 } # /croissant::read_croissant_hf

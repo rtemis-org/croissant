@@ -28,6 +28,24 @@ install.packages(
 pak::pak("rtemis-org/croissant")
 ```
 
+## Hugging Face datasets
+
+A dataset on the Hugging Face Hub can have two Croissant documents: the
+metadata the Hub generates from its Parquet conversion, and a Croissant file
+the dataset's authors store in the repository.
+
+```r
+library(croissant)
+# Metadata the Hub generates
+x <- read_croissant_hf("rtemis/demo")
+# The repository's own metadata file, at tag v1.0.0
+y <- read_croissant("hf://datasets/rtemis/demo@v1.0.0/croissant.json")
+dat <- read_record_set(y, "classification")
+```
+
+[Hugging Face datasets](https://docs.rtemis.org/r/croissant/huggingface.html)
+compares the two.
+
 ## Development
 
 Development tasks go through the `justfile`; `just --list` shows every recipe.

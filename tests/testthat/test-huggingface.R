@@ -82,19 +82,21 @@ test_that("the metadata file of rtemis/demo reads factors from the Hub", {
   x <- read_croissant(path, verbosity = 0L)
   expect_identical(nrow(issues(validate_croissant(x))), 0L)
   expect_identical(names(record_sets(x)), c("regression", "classification"))
-  expect_length(enumerations(x), 11L)
+  expect_length(enumerations(x), 21L)
   tab <- read_record_set(path, "classification", verbosity = 0L)
   expect_identical(dim(tab), c(1000L, 101L))
   expect_identical(levels(tab[["class"]]), c("no", "yes"))
   expect_identical(levels(tab[["x39"]]), c("A", "B", "C", "D", "E"))
-  pinned <- "hf://datasets/rtemis/demo@53a1ec8/data/classification.parquet"
+  expect_identical(levels(tab[["x50"]]), c("no", "yes"))
+  expect_false(any(vapply(tab, is.logical, logical(1L))))
+  pinned <- "hf://datasets/rtemis/demo@465df0b/data/classification.parquet"
   cache_dir <- local_tempdir()
   expect_message(
     file <- hf_download(
       "hf://datasets/rtemis/demo@v1.0.0/data/classification.parquet",
       cache_dir = cache_dir
     ),
-    paste0("Downloading ", pinned, " (690.7 kB)"),
+    paste0("Downloading ", pinned, " (691.8 kB)"),
     fixed = TRUE
   )
   expect_true(file.exists(file))
@@ -106,7 +108,7 @@ test_that("the metadata file of rtemis/demo reads factors from the Hub", {
   expect_identical(
     attr(file, "hf"),
     paste0(
-      "hf://datasets/rtemis/demo@53a1ec8877d38aa522f243ff03e1becc027ed6c0/",
+      "hf://datasets/rtemis/demo@465df0b53b8adbffdd0add970caa70f6077c01c0/",
       "data/classification.parquet"
     )
   )
@@ -173,4 +175,39 @@ test_that("a Hub response without Croissant metadata names the repo's own file",
     "Retry when the dataset viewer shows the data",
     class = "croissant_hf_metadata_error"
   )
+})
+
+test_that("a repository's own croissant.json is named at verbosity 1", {
+  generated <- jsonlite::parse_json(
+    write_croissant(Croissant(
+      name = "demo",
+      record_set = list(RecordSet(id = "r"))
+    ))
+  )
+  listing <- function(files) {
+    function(repo, revision, token) list(files = data.frame(rfilename = files))
+  }
+  local_mocked_bindings(
+    hf_json = function(url, token, what) generated,
+    hf_revision = listing(c("README.md", "croissant.json"))
+  )
+  expect_message(
+    read_croissant_hf("rtemis/demo"),
+    'read_croissant("hf://datasets/rtemis/demo/croissant.json")',
+    fixed = TRUE
+  )
+  expect_message(
+    read_croissant("hf://datasets/rtemis/demo"),
+    "Croissant metadata of its own",
+    fixed = TRUE
+  )
+  local_mocked_bindings(
+    hf_revision = function(repo, revision, token) {
+      stop("no request at verbosity 0")
+    }
+  )
+  expect_no_message(read_croissant_hf("rtemis/demo", verbosity = 0L))
+  local_mocked_bindings(hf_revision = listing("README.md"))
+  messages <- capture_messages(read_croissant_hf("rtemis/demo"))
+  expect_false(any(grepl("of its own", messages)))
 })

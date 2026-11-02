@@ -312,3 +312,31 @@ test_that("verbosity 1 reports the record set, then rows, columns, and n_max", {
   expect_false(grepl("Reading titanic", out, fixed = TRUE))
   expect_no_message(read_record_set(path, "genders", verbosity = 0L))
 })
+
+test_that("a missing record set is named with the record sets there are", {
+  expect_error(
+    find_record_set(Croissant(name = "empty"), "classification"),
+    'The dataset "empty" has no record sets, so it has no record set "classification" to read.',
+    fixed = TRUE,
+    class = "rtemis_value_error"
+  )
+  x <- read_croissant(
+    test_path("fixtures", "1.0", "titanic.json"),
+    verbosity = 0L
+  )
+  expect_error(
+    find_record_set(x, "nope"),
+    paste0(
+      'The dataset "Titanic" has no record set "nope". Its record sets are ',
+      "passengers. Its enumeration record sets are genders and ",
+      "embarkation_ports. Name one by its @id or name."
+    ),
+    fixed = TRUE,
+    class = "rtemis_value_error"
+  )
+  expect_identical(and_list(c("a", "b", "c")), "a, b, and c")
+  expect_identical(
+    and_list(letters[1:12], max = 10L),
+    paste0(paste(letters[1:10], collapse = ", "), ", and 2 more")
+  )
+})
