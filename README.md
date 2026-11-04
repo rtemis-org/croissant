@@ -4,6 +4,8 @@
 
 Read and write [`croissant`](https://docs.mlcommons.org/croissant/docs/croissant-spec.html) metadata files.
 
+![croissant cover](https://docs.rtemis.org/r/croissant/assets/cover.avif)
+
 ## Installation
 
 ### Latest version from `r-universe`
