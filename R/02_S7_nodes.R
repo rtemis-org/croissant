@@ -307,12 +307,12 @@ Transform <- new_class(
   properties = list(
     format = optional_string,
     json_path = optional_string,
-    read_lines = optional_logical_scalar,
+    read_lines = prop_boolean(default = NULL, nullable = TRUE),
     regex = optional_string,
     replace = optional_string,
     sampling_rate = optional_count,
     separator = optional_string,
-    un_archive = optional_logical_scalar,
+    un_archive = prop_boolean(default = NULL, nullable = TRUE),
     other_properties = optional_other
   )
 ) # /croissant::Transform
@@ -434,8 +434,8 @@ Field <- new_class(
     sub_field = node_list("Field"),
     parent_field = NULL | ParentField,
     annotation = node_list("Field"),
-    repeated = optional_logical_scalar,
-    is_array = optional_logical_scalar,
+    repeated = prop_boolean(default = NULL, nullable = TRUE),
+    is_array = prop_boolean(default = NULL, nullable = TRUE),
     array_shape = optional_string,
     equivalent_property = optional_strings,
     value = class_any,
@@ -655,7 +655,7 @@ Croissant <- new_class(
   name = "Croissant",
   package = "croissant",
   properties = list(
-    version = enum(.croissant_versions, default = "1.1"),
+    version = prop_string(default = "1.1", enum = .croissant_versions),
     id = optional_string,
     name = optional_text,
     description = optional_text,
@@ -674,7 +674,7 @@ Croissant <- new_class(
     date_published = optional_string,
     keywords = optional_strings,
     in_language = optional_strings,
-    is_live_dataset = optional_logical_scalar,
+    is_live_dataset = prop_boolean(default = NULL, nullable = TRUE),
     distribution = named_node_list("distribution", "FileObject", "FileSet"),
     record_set = named_node_list("record_set", "RecordSet"),
     data_collection = optional_strings,

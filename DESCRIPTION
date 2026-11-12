@@ -32,7 +32,7 @@ Imports:
     methods,
     nanoparquet,
     openssl,
-    rtemis.core (>= 0.5.0),
+    rtemis.core (>= 0.4.7),
     S7,
     stats,
     utils
@@ -42,6 +42,7 @@ Suggests:
     jsonld,
     tibble,
     testthat (>= 3.0.0)
+Additional_repositories: https://rtemis-org.r-universe.dev
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Config/testthat/edition: 3
