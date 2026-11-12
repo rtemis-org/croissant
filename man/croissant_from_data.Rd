@@ -22,8 +22,9 @@ croissant_from_data(
 
 \item{name}{Character: Name of the dataset.}
 
-\item{format}{Character \{"csv", "parquet"\}: File format. \code{"parquet"}
-requires the 'arrow' package.}
+\item{format}{Character \{"csv", "parquet"\}: File format. Parquet is
+written with 'arrow' when it is installed and with 'nanoparquet'
+otherwise.}
 
 \item{record_set}{Character: \verb{@id} of the record set.}
 
@@ -61,9 +62,11 @@ enumeration record set, \verb{<record_set>_<column>_levels}, with data type
 \code{sc:Enumeration}, one field \code{label}, and the levels as inline records; the
 factor's field \code{references} that field, so \code{\link[=read_record_set]{read_record_set()}} returns the
 column as a factor with the same levels. An ordered factor reads back
-ordered, and a POSIXct column with its time zone, from Parquet; CSV holds
-neither, so an ordered factor, or a POSIXct column in a time zone other
-than UTC, is an error with \code{format = "csv"}. In CSV, a missing value is
+ordered, and a POSIXct column with its time zone, from Parquet written and
+read with 'arrow'; 'nanoparquet' writes date-times in UTC and reads an
+ordered factor as an unordered one. CSV holds neither, so an ordered
+factor, or a POSIXct column in a time zone other than UTC, is an error with
+\code{format = "csv"}. In CSV, a missing value is
 written as an empty field and an empty string as \code{""}, and they read back
 as \code{NA} and \code{""}.
 }

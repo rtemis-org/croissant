@@ -38,7 +38,9 @@
 #' listing, as [hf_download()] does. Zip and tar archives are extracted
 #' into `cache_dir`. Relative `contentUrl`s and `FileSet` globs resolve
 #' against `base`. Columns are read from CSV, TSV, JSON, JSON Lines, and
-#' Parquet files; Parquet requires the 'arrow' package. A field extracting
+#' Parquet files. Parquet is read with 'arrow' when it is installed and with
+#' 'nanoparquet' otherwise; 'nanoparquet' reads an ordered factor as an
+#' unordered one, a date-time in UTC, and no nested columns. A field extracting
 #' the `content` of an image, audio, or video file holds the file's local
 #' path; with a text data type it holds the file's text.
 #'
