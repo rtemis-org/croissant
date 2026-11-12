@@ -45,17 +45,20 @@
 #' `sc:Enumeration`, one field `label`, and the levels as inline records; the
 #' factor's field `references` that field, so [read_record_set()] returns the
 #' column as a factor with the same levels. An ordered factor reads back
-#' ordered, and a POSIXct column with its time zone, from Parquet; CSV holds
-#' neither, so an ordered factor, or a POSIXct column in a time zone other
-#' than UTC, is an error with `format = "csv"`. In CSV, a missing value is
+#' ordered, and a POSIXct column with its time zone, from Parquet written and
+#' read with 'arrow'; 'nanoparquet' writes date-times in UTC and reads an
+#' ordered factor as an unordered one. CSV holds neither, so an ordered
+#' factor, or a POSIXct column in a time zone other than UTC, is an error with
+#' `format = "csv"`. In CSV, a missing value is
 #' written as an empty field and an empty string as `""`, and they read back
 #' as `NA` and `""`.
 #'
 #' @param x data.frame, data.table, or tibble: The data.
 #' @param file Character: Path of the data file to write.
 #' @param name Character: Name of the dataset.
-#' @param format Character \{"csv", "parquet"\}: File format. `"parquet"`
-#' requires the 'arrow' package.
+#' @param format Character \{"csv", "parquet"\}: File format. Parquet is
+#' written with 'arrow' when it is installed and with 'nanoparquet'
+#' otherwise.
 #' @param record_set Character: `@id` of the record set.
 #' @param content_url Character: `contentUrl` of the file, relative to the
 #' metadata document.
@@ -126,8 +129,7 @@ croissant_from_data <- function(
     data.table::fwrite(data, file, dateTimeAs = "write.csv", na = "")
     "text/csv"
   } else {
-    check_dependencies("arrow")
-    arrow::write_parquet(data, file)
+    write_parquet_file(data, file)
     "application/x-parquet"
   }
   file_id <- basename(file)
@@ -170,6 +172,27 @@ croissant_from_data <- function(
     ...
   )
 } # /croissant::croissant_from_data
+
+
+# %% write_parquet_file ----
+#' Write a data.frame to Parquet
+#'
+#' @param data data.frame.
+#' @param file Character: Path.
+#'
+#' @return `file`, invisibly.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+write_parquet_file <- function(data, file) {
+  if (has_arrow()) {
+    arrow::write_parquet(data, file)
+  } else {
+    nanoparquet::write_parquet(data, file)
+  }
+  invisible(file)
+} # /croissant::write_parquet_file
 
 
 # %% data_base ----

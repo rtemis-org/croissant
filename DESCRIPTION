@@ -1,7 +1,7 @@
 Package: croissant
-Version: 0.0.1
+Version: 0.0.2
 Title: Read, Write, and Validate Croissant Dataset Metadata
-Date: 2026-11-01
+Date: 2026-11-11
 Authors@R: c(
     person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"),
         email = "gennatas@gmail.com", comment = c(ORCID = "0000-0001-9280-3609")),
@@ -30,6 +30,7 @@ Imports:
     data.table,
     jsonlite,
     methods,
+    nanoparquet,
     openssl,
     rtemis.core,
     S7,

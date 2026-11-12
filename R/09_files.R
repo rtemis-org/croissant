@@ -773,9 +773,12 @@ read_content <- function(path, formats, columns = NULL) {
         )
     )
   ) {
-    check_dependencies("arrow")
-    df <- if (!is.null(columns)) read_parquet_columns(path, columns)
-    df <- df %||% as.data.frame(arrow::read_parquet(path))
+    df <- if (has_arrow()) {
+      df <- if (!is.null(columns)) read_parquet_columns(path, columns)
+      df %||% as.data.frame(arrow::read_parquet(path))
+    } else {
+      read_parquet_nanoparquet(path, columns)
+    }
     # A struct column reads as a data.frame column; each value becomes a
     # named list, as a JSON object, so a jsonPath transform can select from
     # it.
@@ -843,6 +846,57 @@ read_parquet_columns <- function(path, columns) {
     error = function(e) NULL
   )
 } # /croissant::read_parquet_columns
+
+
+# %% has_arrow ----
+#' Whether the 'arrow' package is installed
+#'
+#' @return Logical scalar.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+has_arrow <- function() {
+  requireNamespace("arrow", quietly = TRUE)
+} # /croissant::has_arrow
+
+
+# %% read_parquet_nanoparquet ----
+#' Read a Parquet file with nanoparquet
+#'
+#' Reads only the named columns when the file has all of them, and the whole
+#' file otherwise. A 64-bit integer column reads as integer64 when 'bit64' is
+#' installed, and as double otherwise.
+#'
+#' @param path Character: Local file path.
+#' @param columns Optional Character: Column names.
+#'
+#' @return data.frame.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+read_parquet_nanoparquet <- function(path, columns = NULL) {
+  col_select <- if (
+    !is.null(columns) &&
+      all(columns %in% nanoparquet::read_parquet_schema(path)[["name"]][-1L])
+  ) {
+    columns
+  }
+  int64 <- if (requireNamespace("bit64", quietly = TRUE)) {
+    "integer64"
+  } else {
+    "double"
+  }
+  nanoparquet::read_parquet(
+    path,
+    col_select = col_select,
+    options = nanoparquet::parquet_options(
+      class = "data.frame",
+      read_int64_type = int64
+    )
+  )
+} # /croissant::read_parquet_nanoparquet
 
 
 # Strings that pandas reads as missing, so that CSV values compare with

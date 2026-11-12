@@ -38,10 +38,7 @@ test_that("CSV and Parquet metadata validate and read back the table", {
   x <- typed_table()
   expected <- x
   names(expected) <- c("i", "d", "b", "s", "f", "dt", "ts", "my_col")
-  formats <- "csv"
-  if (requireNamespace("arrow", quietly = TRUE)) {
-    formats <- c(formats, "parquet")
-  }
+  formats <- c("csv", "parquet")
   for (format in formats) {
     for (version in c("1.0", "1.1")) {
       rt <- round_trip(x, format, version)
@@ -97,10 +94,7 @@ class_table <- function(format, version) {
 }
 
 test_that("every accepted class reads back identical, levels, order, and zone included", {
-  formats <- "csv"
-  if (requireNamespace("arrow", quietly = TRUE)) {
-    formats <- c(formats, "parquet")
-  }
+  formats <- c("csv", "parquet")
   for (format in formats) {
     for (version in c("1.0", "1.1")) {
       x <- class_table(format, version)
@@ -118,6 +112,42 @@ test_that("every accepted class reads back identical, levels, order, and zone in
       )
       expect_identical(y, x, label = paste(format, version))
     }
+  }
+})
+
+test_that("nanoparquet reads every class back, ordered factors unordered and date-times in UTC", {
+  local_mocked_bindings(has_arrow = function() FALSE)
+  x <- class_table("parquet", "1.1")
+  rt <- round_trip(x, "parquet", "1.1")
+  y <- read_record_set(
+    rt[["path"]],
+    "default",
+    output = "data.frame",
+    verbosity = 0L
+  )
+  expected <- x
+  expected[["ord"]] <- factor(expected[["ord"]], ordered = FALSE)
+  attr(expected[["la"]], "tzone") <- "UTC"
+  attr(expected[["local"]], "tzone") <- "UTC"
+  expect_identical(y, expected)
+})
+
+test_that("an enumeration makes a factor of a plain text Parquet column", {
+  x <- data.frame(g = c("lo", "hi", NA), v = 1:3)
+  dir <- local_tempdir()
+  m <- croissant_from_data(
+    data.frame(g = factor(x[["g"]], levels = c("lo", "mid", "hi")), v = 1:3),
+    file.path(dir, "data.parquet"),
+    name = "t",
+    format = "parquet"
+  )
+  # A writer such as DuckDB stores the column as plain text.
+  nanoparquet::write_parquet(x, file.path(dir, "data.parquet"))
+  for (arrow in c(TRUE, FALSE)) {
+    local_mocked_bindings(has_arrow = function() arrow)
+    y <- read_record_set(m, "default", output = "data.frame", verbosity = 0L)
+    expect_identical(levels(y[["g"]]), c("lo", "mid", "hi"))
+    expect_identical(as.character(y[["g"]]), x[["g"]])
   }
 })
 
@@ -206,7 +236,6 @@ test_that("a factor's levels form an enumeration record set", {
 })
 
 test_that("Parquet keeps a factor with its levels in order; CSV its labels", {
-  skip_if_not_installed("arrow")
   x <- data.frame(f = factor(c("u", "v", "u"), levels = c("v", "u", "w")))
   dir <- local_tempdir()
   croissant_from_data(
@@ -215,7 +244,7 @@ test_that("Parquet keeps a factor with its levels in order; CSV its labels", {
     name = "t",
     format = "parquet"
   )
-  y <- arrow::read_parquet(file.path(dir, "d.parquet"))
+  y <- nanoparquet::read_parquet(file.path(dir, "d.parquet"))
   expect_identical(levels(y[["f"]]), c("v", "u", "w"))
   croissant_from_data(x, file.path(dir, "d.csv"), name = "t")
   expect_identical(readLines(file.path(dir, "d.csv")), c("f", "u", "v", "u"))

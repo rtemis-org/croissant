@@ -1,3 +1,7 @@
+# croissant 0.0.2
+
+- `croissant_from_data()` and `read_record_set()` read and write Parquet with 'arrow' when it is installed and with 'nanoparquet' otherwise, so Parquet record sets read and write without 'arrow', including under webR. 'nanoparquet' writes date-times in UTC and reads an ordered factor as an unordered one.
+
 # croissant 0.0.1
 
 - `read_croissant()` reads Croissant 1.0 and 1.1 JSON-LD metadata from a file, URL, or JSON string into a `Croissant` object.
