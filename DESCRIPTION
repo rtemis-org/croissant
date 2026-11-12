@@ -32,7 +32,7 @@ Imports:
     methods,
     nanoparquet,
     openssl,
-    rtemis.core (>= 0.5.0),
+    rtemis.core (>= 0.4.7),
     S7,
     stats,
     utils
