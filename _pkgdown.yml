@@ -50,6 +50,9 @@ reference:
     contents:
       - read_croissant_hf
       - hf_download
+  - title: Kaggle
+    contents:
+      - read_croissant_kaggle
   - title: Metadata classes
     contents:
       - Croissant
