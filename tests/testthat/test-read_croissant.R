@@ -303,3 +303,38 @@ test_that("a node is built as its constructor builds it", {
     expect_null(node_class(cls)@validator, label = cls)
   }
 })
+
+test_that("text whose tags repeat or are missing reads as tagged strings", {
+  doc <- list(
+    `@context` = croissant_context("1.1"),
+    `@type` = "sc:Dataset",
+    name = list(
+      "Titanic",
+      list(`@value` = "Titanic", `@language` = "fr"),
+      list(`@value` = "Le Titanic", `@language` = "fr")
+    ),
+    description = list(list(`@value` = "Passengers.", `@language` = "en"))
+  )
+  json <- as.character(jsonlite::toJSON(doc, auto_unbox = TRUE))
+  x <- read_croissant(json, verbosity = 0L)
+  expect_identical(
+    x@name,
+    list(
+      list(value = "Titanic"),
+      list(value = "Titanic", language = "fr"),
+      list(value = "Le Titanic", language = "fr")
+    )
+  )
+  expect_identical(x@description, c(en = "Passengers."))
+  expect_identical(about(x)[["name"]], "Titanic")
+  back <- jsonlite::parse_json(write_croissant(x), simplifyVector = FALSE)
+  expect_identical(back[["name"]], doc[["name"]])
+})
+
+test_that("a text property rejects a character vector with empty or repeated tags", {
+  expect_error(Croissant(name = c(en = "a", "b")))
+  expect_error(Croissant(name = c(fr = "a", fr = "b")))
+  expect_no_error(Croissant(
+    name = list(list(value = "a"), list(value = "b", language = "fr"))
+  ))
+})

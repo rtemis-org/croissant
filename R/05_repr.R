@@ -1234,7 +1234,7 @@ one_line <- function(x) {
 # %% first_text ----
 #' First value of a text property
 #'
-#' @param x Optional Character: Text, named by language tag where tagged.
+#' @param x Text value, or `NULL` (see [croissant-package]).
 #'
 #' @return Character scalar, or `NULL` when `x` is `NULL`.
 #'
@@ -1242,5 +1242,24 @@ one_line <- function(x) {
 #' @keywords internal
 #' @noRd
 first_text <- function(x) {
-  if (is.null(x)) NULL else unname(x[[1L]])
+  if (is.null(x)) NULL else text_strings(x)[[1L]]
 } # /croissant::first_text
+
+
+# %% text_strings ----
+#' The strings of a text value
+#'
+#' @param x Text value (see [croissant-package]).
+#'
+#' @return Character: The strings, without their language tags.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+text_strings <- function(x) {
+  if (is.list(x)) {
+    vapply(x, \(v) v[["value"]], character(1L))
+  } else {
+    unname(x)
+  }
+} # /croissant::text_strings

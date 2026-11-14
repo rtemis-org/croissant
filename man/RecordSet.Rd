@@ -5,6 +5,7 @@
 \title{RecordSet: a set of records with a common structure}
 \usage{
 RecordSet(
+  type = "cr:RecordSet",
   id = NULL,
   name = NULL,
   description = NULL,
@@ -18,13 +19,14 @@ RecordSet(
 )
 }
 \arguments{
+\item{type}{Character: JSON-LD \verb{@type}, the constant \code{"cr:RecordSet"}.}
+
 \item{id}{Optional Character: \verb{@id}, unique within the document.}
 
-\item{name}{Optional Character: Name, or a character vector named by
-language tag.}
+\item{name}{Optional Character or List: Name, as text (see \link{croissant-package}).}
 
-\item{description}{Optional Character: Description, or a character vector
-named by language tag.}
+\item{description}{Optional Character or List: Description, as text (see
+\link{croissant-package}).}
 
 \item{data_type}{Optional Character: Data types, such as
 \code{"sc:Enumeration"}.}

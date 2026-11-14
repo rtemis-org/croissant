@@ -18,6 +18,16 @@ the node classes follow the Croissant vocabulary, one property per term, and
 are read and set with \code{@}: \code{x@name}, \code{x@description <- "..."}. An
 assignment is validated by the class.
 }
+\section{Text}{
+
+A text property, such as \code{name} or \code{description}, holds one of four forms:
+a string; a character vector of strings without language tags; a character
+vector named by distinct language tags, such as
+\code{c(en = "english", fr = "fran\\u00e7ais")}; or a list of tagged strings,
+each a list with a \code{value} and an optional \code{language}, for text whose tags
+repeat or are missing from some strings.
+}
+
 \seealso{
 Useful links:
 \itemize{

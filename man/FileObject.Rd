@@ -5,6 +5,7 @@
 \title{FileObject: a single file of the dataset}
 \usage{
 FileObject(
+  type = "cr:FileObject",
   id = NULL,
   name = NULL,
   description = NULL,
@@ -20,13 +21,14 @@ FileObject(
 )
 }
 \arguments{
+\item{type}{Character: JSON-LD \verb{@type}, the constant \code{"cr:FileObject"}.}
+
 \item{id}{Optional Character: \verb{@id}, unique within the document.}
 
-\item{name}{Optional Character: Name, or a character vector named by
-language tag.}
+\item{name}{Optional Character or List: Name, as text (see \link{croissant-package}).}
 
-\item{description}{Optional Character: Description, or a character vector
-named by language tag.}
+\item{description}{Optional Character or List: Description, as text (see
+\link{croissant-package}).}
 
 \item{content_url}{Optional Character: URL or relative path of the file.}
 

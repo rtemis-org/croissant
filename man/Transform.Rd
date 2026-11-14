@@ -17,7 +17,7 @@ Transform(
 )
 }
 \arguments{
-\item{format}{Optional Character: Format used to parse the value, such as
+\item{format}{Optional Character: Format by which the value is parsed, such as
 a date format.}
 
 \item{json_path}{Optional Character: JSONPath expression.}
@@ -32,7 +32,7 @@ group is kept.}
 
 \item{sampling_rate}{Optional Numeric: Sampling rate of audio content.}
 
-\item{separator}{Optional Character: Separator used to split the value.}
+\item{separator}{Optional Character: Separator that splits the value.}
 
 \item{un_archive}{Optional Logical: Whether to extract an archive.}
 

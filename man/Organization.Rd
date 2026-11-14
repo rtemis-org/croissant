@@ -5,6 +5,7 @@
 \title{Organization: an organization that created or published a dataset}
 \usage{
 Organization(
+  type = "sc:Organization",
   id = NULL,
   name = NULL,
   description = NULL,
@@ -14,13 +15,14 @@ Organization(
 )
 }
 \arguments{
+\item{type}{Character: JSON-LD \verb{@type}, the constant \code{"sc:Organization"}.}
+
 \item{id}{Optional Character: \verb{@id}.}
 
-\item{name}{Optional Character: Name, or a character vector named by
-language tag.}
+\item{name}{Optional Character or List: Name, as text (see \link{croissant-package}).}
 
-\item{description}{Optional Character: Description, or a character vector
-named by language tag.}
+\item{description}{Optional Character or List: Description, as text (see
+\link{croissant-package}).}
 
 \item{email}{Optional Character: Email address.}
 

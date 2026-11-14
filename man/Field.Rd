@@ -5,6 +5,7 @@
 \title{Field: one column or attribute of a record set}
 \usage{
 Field(
+  type = "cr:Field",
   id = NULL,
   name = NULL,
   description = NULL,
@@ -23,13 +24,14 @@ Field(
 )
 }
 \arguments{
+\item{type}{Character: JSON-LD \verb{@type}, the constant \code{"cr:Field"}.}
+
 \item{id}{Optional Character: \verb{@id}, unique within the document.}
 
-\item{name}{Optional Character: Name, or a character vector named by
-language tag.}
+\item{name}{Optional Character or List: Name, as text (see \link{croissant-package}).}
 
-\item{description}{Optional Character: Description, or a character vector
-named by language tag.}
+\item{description}{Optional Character or List: Description, as text (see
+\link{croissant-package}).}
 
 \item{data_type}{Optional Character: Data types, as compact IRIs such as
 \code{"sc:Text"} or \code{"sc:Integer"}.}

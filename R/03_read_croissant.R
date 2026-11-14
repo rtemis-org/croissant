@@ -576,10 +576,10 @@ read_text <- function(value) {
     return(value)
   }
   if (is.list(value) && !is.null(names(value)) && !"@value" %in% names(value)) {
-    if (length(value) > 0L && all(vapply(value, is_string, logical(1L)))) {
-      return(unlist(value))
+    if (length(value) == 0L || !all(vapply(value, is_string, logical(1L)))) {
+      type_error("text", value)
     }
-    type_error("text", value)
+    return(text_value(unlist(value, use.names = FALSE), names(value)))
   }
   values <- as_array(value)
   langs <- character(length(values))
@@ -595,8 +595,38 @@ read_text <- function(value) {
       type_error("text", value)
     }
   }
-  if (any(nzchar(langs))) stats::setNames(texts, langs) else texts
+  text_value(texts, langs)
 } # /croissant::read_text
+
+
+# %% text_value ----
+#' The form of a text value
+#'
+#' @param texts Character: Strings.
+#' @param langs Character: Language tag of each string, `""` for none.
+#'
+#' @return `texts` when no string is tagged; `texts` named by `langs` when
+#' every string is tagged and the tags are distinct; otherwise a list of
+#' tagged strings, each `list(value = )` with `language` when tagged.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+text_value <- function(texts, langs) {
+  if (!any(nzchar(langs))) {
+    return(texts)
+  }
+  if (all(nzchar(langs)) && !anyDuplicated(langs)) {
+    return(stats::setNames(texts, langs))
+  }
+  lapply(seq_along(texts), function(i) {
+    if (nzchar(langs[[i]])) {
+      list(value = texts[[i]], language = langs[[i]])
+    } else {
+      list(value = texts[[i]])
+    }
+  })
+} # /croissant::text_value
 
 
 # %% read_ref ----
