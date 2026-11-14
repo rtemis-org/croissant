@@ -4,7 +4,7 @@
 \alias{read_croissant_kaggle}
 \title{Read the Croissant metadata of a Kaggle dataset}
 \usage{
-read_croissant_kaggle(dataset, file = NULL, verbosity = 1L)
+read_croissant_kaggle(dataset, file = NULL, token = NULL, verbosity = 1L)
 }
 \arguments{
 \item{dataset}{Character: Dataset, as \verb{<owner>/<slug>} or as its URL,
@@ -13,6 +13,9 @@ read_croissant_kaggle(dataset, file = NULL, verbosity = 1L)
 \item{file}{Optional Character: Path of a Croissant file in the dataset,
 such as \code{"croissant.json"}. If \code{NULL}, the metadata Kaggle generates is
 read.}
+
+\item{token}{Optional Character: Kaggle API token, used with \code{file}. \code{NULL}
+reads \code{KAGGLE_API_TOKEN}, then \verb{~/.kaggle/access_token}.}
 
 \item{verbosity}{Integer: Verbosity level; \code{1L} reports the dataset before
 reading, and the dataset name and counts of record sets, enumerations, and
@@ -23,17 +26,25 @@ files after.}
 }
 \description{
 With \code{file = NULL}, downloads the metadata Kaggle generates for a public
-dataset (\verb{https://www.kaggle.com/datasets/<owner>/<slug>/croissant/download})
-and reads it with \code{\link[=read_croissant]{read_croissant()}}. The metadata describes the dataset's
-current version. Its record sets read through \code{\link[=read_record_set]{read_record_set()}}, which
-downloads the version's zip archive from the Kaggle API, checks its MD5,
-and extracts the files the record set reads.
+dataset (\verb{https://www.kaggle.com/datasets/<owner>/<slug>/croissant/download}),
+the document the dataset page exports as Croissant, and reads it with
+\code{\link[=read_croissant]{read_croissant()}}. Kaggle serves this metadata for public datasets.
+The metadata describes the dataset's current version. Its record sets read
+through \code{\link[=read_record_set]{read_record_set()}}, which downloads the version's zip archive from
+the Kaggle API, checks its MD5, and extracts the files the record set reads.
 }
 \details{
 With \code{file}, reads a Croissant file stored in the dataset, from the Kaggle
 API (\verb{https://www.kaggle.com/api/v1/datasets/download/<owner>/<slug>/<file>}).
 Its relative \code{contentUrl}s resolve to the dataset's files on the Kaggle API,
 so \code{\link[=read_record_set]{read_record_set()}} downloads each file a record set reads.
+
+Requests to the Kaggle API carry the Kaggle API token when there is one,
+which a private dataset requires. The token is resolved as the Kaggle
+command-line tool and 'kagglehub' resolve it: \code{token}; the
+\code{KAGGLE_API_TOKEN} environment variable, holding the token or the path of a
+file that holds it; and the file \verb{~/.kaggle/access_token}. A token is
+created at \url{https://www.kaggle.com/settings/api}.
 }
 \examples{
 \dontshow{if (interactive()) withAutoprint(\{ # examplesIf}

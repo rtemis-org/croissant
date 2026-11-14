@@ -72,6 +72,10 @@
 #' so later files are not downloaded.
 #' @param token Optional Character: Hugging Face token, for files of gated or
 #' private Hub datasets. `NULL` reads `HF_TOKEN`.
+#' @param kaggle_token Optional Character: Kaggle API token, for files of
+#' private Kaggle datasets, sent to the Kaggle API only. `NULL` reads
+#' `KAGGLE_API_TOKEN`, then `~/.kaggle/access_token`, as
+#' [read_croissant_kaggle()] does.
 #' @param verbosity Integer: Verbosity level; `1L` reports the record set
 #' before reading, each file downloaded or read from the cache, each archive
 #' extracted or whose cached extraction is reused, and the number of rows and
@@ -120,6 +124,7 @@ read_record_set <- function(
   ),
   n_max = Inf,
   token = NULL,
+  kaggle_token = NULL,
   verbosity = 1L
 ) {
   output <- match.arg(output)
@@ -131,6 +136,7 @@ read_record_set <- function(
     )
   }
   check_nullable_character_scalar(base)
+  check_nullable_character_scalar(kaggle_token)
   check_character_scalar(cache_dir)
   if (output == "tibble") {
     check_dependencies("tibble")
@@ -143,7 +149,14 @@ read_record_set <- function(
     x <- read_croissant(x, verbosity = 0L)
   }
   base <- base %||% x@base
-  ctx <- new_load_context(x, base, cache_dir, verbosity, hf_token(token))
+  ctx <- new_load_context(
+    x,
+    base,
+    cache_dir,
+    verbosity,
+    hf_token(token),
+    resolve_kaggle_token(kaggle_token)
+  )
   rs <- find_record_set(x, record_set)
   start <- Sys.time()
   msg0(

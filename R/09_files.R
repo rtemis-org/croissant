@@ -19,19 +19,28 @@
 #' @param cache_dir Character: Cache directory.
 #' @param verbosity Integer: Verbosity level.
 #' @param token Character: Hugging Face token, or `""`.
+#' @param kaggle_token Character: Kaggle API token, or `""`.
 #'
 #' @return Environment.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-new_load_context <- function(x, base, cache_dir, verbosity, token = "") {
+new_load_context <- function(
+  x,
+  base,
+  cache_dir,
+  verbosity,
+  token = "",
+  kaggle_token = ""
+) {
   ctx <- new.env(parent = emptyenv())
   ctx[["x"]] <- x
   ctx[["base"]] <- base
   ctx[["cache_dir"]] <- cache_dir
   ctx[["verbosity"]] <- verbosity
   ctx[["token"]] <- token
+  ctx[["kaggle_token"]] <- kaggle_token
   ctx[["tables"]] <- new.env(parent = emptyenv())
   ctx[["dirs"]] <- new.env(parent = emptyenv())
   ctx[["hf"]] <- new.env(parent = emptyenv())
@@ -323,21 +332,18 @@ download_cached <- function(ctx, url, sha256, md5) {
   }
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   info("Downloading ", url, verbosity = ctx[["verbosity"]])
-  status <- tryCatch(
-    utils::download.file(url, dest, mode = "wb", quiet = TRUE),
-    error = function(e) e
+  failed <- download_url(
+    url,
+    dest,
+    kaggle_headers(url, ctx[["kaggle_token"]] %||% "")
   )
-  if (inherits(status, "error") || !identical(status, 0L)) {
+  if (!is.null(failed)) {
     unlink(dest)
     abort(
       "Downloading ",
       url,
-      " failed",
-      if (inherits(status, "error")) {
-        paste0(": ", conditionMessage(status))
-      } else {
-        ""
-      },
+      " failed: ",
+      conditionMessage(failed),
       ".",
       class = c("croissant_download_error", "rtemis_input_error")
     )
@@ -356,6 +362,34 @@ download_cached <- function(ctx, url, sha256, md5) {
   }
   dest
 } # /croissant::download_cached
+
+
+# %% download_url ----
+#' Download a URL to a file
+#'
+#' @param url Character: URL.
+#' @param dest Character: Destination file.
+#' @param headers Optional Named character: Request headers.
+#'
+#' @return The condition when the download fails or warns, otherwise `NULL`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+download_url <- function(url, dest, headers = NULL) {
+  status <- tryCatch(
+    utils::download.file(
+      url,
+      dest,
+      mode = "wb",
+      quiet = TRUE,
+      headers = headers
+    ),
+    error = identity,
+    warning = identity
+  )
+  if (inherits(status, "condition")) status else NULL
+} # /croissant::download_url
 
 
 # %% checksum_ok ----

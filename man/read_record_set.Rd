@@ -12,6 +12,7 @@ read_record_set(
   cache_dir = getOption("croissant.cache_dir", tools::R_user_dir("croissant", "cache")),
   n_max = Inf,
   token = NULL,
+  kaggle_token = NULL,
   verbosity = 1L
 )
 }
@@ -40,6 +41,11 @@ so later files are not downloaded.}
 
 \item{token}{Optional Character: Hugging Face token, for files of gated or
 private Hub datasets. \code{NULL} reads \code{HF_TOKEN}.}
+
+\item{kaggle_token}{Optional Character: Kaggle API token, for files of
+private Kaggle datasets, sent to the Kaggle API only. \code{NULL} reads
+\code{KAGGLE_API_TOKEN}, then \verb{~/.kaggle/access_token}, as
+\code{\link[=read_croissant_kaggle]{read_croissant_kaggle()}} does.}
 
 \item{verbosity}{Integer: Verbosity level; \code{1L} reports the record set
 before reading, each file downloaded or read from the cache, each archive
