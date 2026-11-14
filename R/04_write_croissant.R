@@ -43,7 +43,7 @@ write_croissant <- function(x, path = NULL, pretty = TRUE) {
       class = c("rtemis_type_error", "rtemis_input_error")
     )
   }
-  check_optional_character_scalar(path)
+  check_nullable_character_scalar(path)
   check_logical_scalar(pretty)
   txt <- to_json_text(croissant_to_list(x), pretty = pretty)
   if (is.null(path)) {
@@ -189,28 +189,35 @@ write_value <- function(value, term, version) {
 # %% write_text ----
 #' Convert a text value to JSON
 #'
-#' @param value Character: Text, named by language tag where tagged.
+#' @param value Text value (see [croissant-package]).
 #' @param version Character: Croissant version being written.
 #'
-#' @return A string, a language map, or an array of strings and value objects.
+#' @return A string; an array of strings; for strings named by language tag, a
+#' language map in 1.1 and an array of value objects in 1.0; for a list of
+#' tagged strings, an array of strings and value objects.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
 write_text <- function(value, version) {
-  langs <- names(value)
-  if (is.null(langs) || !any(nzchar(langs))) {
-    return(if (length(value) == 1L) value else as.list(unname(value)))
+  if (is.list(value)) {
+    return(lapply(value, function(v) {
+      if (is.null(v[["language"]])) {
+        v[["value"]]
+      } else {
+        list(`@value` = v[["value"]], `@language` = v[["language"]])
+      }
+    }))
   }
-  if (version == "1.1" && all(nzchar(langs)) && !anyDuplicated(langs)) {
+  langs <- names(value)
+  if (is.null(langs)) {
+    return(if (length(value) == 1L) value else as.list(value))
+  }
+  if (version == "1.1") {
     return(as.list(value))
   }
   lapply(seq_along(value), function(i) {
-    if (nzchar(langs[[i]])) {
-      list(`@value` = unname(value[[i]]), `@language` = langs[[i]])
-    } else {
-      unname(value[[i]])
-    }
+    list(`@value` = unname(value[[i]]), `@language` = langs[[i]])
   })
 } # /croissant::write_text
 

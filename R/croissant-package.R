@@ -17,6 +17,14 @@
 #' are read and set with `@`: `x@name`, `x@description <- "..."`. An
 #' assignment is validated by the class.
 #'
+#' @section Text:
+#' A text property, such as `name` or `description`, holds one of four forms:
+#' a string; a character vector of strings without language tags; a character
+#' vector named by distinct language tags, such as
+#' `c(en = "english", fr = "fran\u00e7ais")`; or a list of tagged strings,
+#' each a list with a `value` and an optional `language`, for text whose tags
+#' repeat or are missing from some strings.
+#'
 #' @name croissant-package
 #'
 #' @import methods S7 rtemis.core

@@ -1,5 +1,9 @@
 # croissant 0.0.2
 
+- Every typed property of the node classes is an 'rtemis.core' (>= 0.5.0) property declaration, so an assignment is validated by the same rules and messages as every other rtemis class.
+- Each node class with a JSON-LD type holds it in a `type` property, such as `"cr:Field"` for `Field` and `"sc:Dataset"` for `Croissant`.
+- A text property, such as `name` or `description`, holds a string, a character vector of strings without language tags, a character vector named by distinct language tags, or a list of tagged strings for text whose tags repeat or are missing from some strings (see `?croissant`); `read_croissant()` reads and `write_croissant()` writes each form.
+- `record_set` and `distribution` key each node by its `@id`, else its first name, else its position, made distinct by `make.unique()`.
 - `croissant_from_data()` and `read_record_set()` read and write Parquet with 'arrow' when it is installed and with 'nanoparquet' otherwise, so Parquet record sets read and write without 'arrow', including under webR. 'nanoparquet' writes date-times in UTC and reads an ordered factor as an unordered one.
 
 # croissant 0.0.1

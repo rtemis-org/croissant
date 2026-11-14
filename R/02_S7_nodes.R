@@ -13,102 +13,90 @@
 # apply.
 
 # %% Properties ----
-# Text: a string, or a character vector named by language tag.
-optional_text <- new_property(
-  class = NULL | class_character,
+# Each typed property holds any value a Croissant document gives it, so that a
+# document reads without loss and `validate_croissant()` reports what it
+# finds: a string admits "" and strings of spaces, such as a separator of " ",
+# and a list admits zero elements. Every declaration is nullable; NULL is a
+# property the document does not give.
+
+# A JSON string.
+nullable_string <- prop_string(nullable = TRUE, min_length = 0L)
+
+# One or more JSON strings.
+nullable_strings <- prop_array(prop_string(min_length = 0L), nullable = TRUE)
+
+# A JSON number.
+nullable_number <- prop_number(nullable = TRUE)
+
+# Parsed JSON records: an array or an object.
+nullable_records <- prop_union(
+  list(
+    prop_array(prop_any(), min_items = 0L),
+    prop_map(prop_any(), min_members = 0L)
+  ),
+  nullable = TRUE
+)
+
+# Properties without a typed counterpart, keyed by canonical JSON-LD key, each
+# holding its parsed JSON value.
+other_members <- prop_map(prop_any(), min_members = 0L, nullable = TRUE)
+
+# Text, in one of four forms: a string; strings without language tags; strings
+# named by distinct language tags; or a list of tagged strings, each a `value`
+# with an optional `language`, for text whose tags repeat or are missing from
+# some strings.
+nullable_text <- prop_union(
+  list(
+    prop_string(min_length = 0L),
+    prop_array(prop_string(min_length = 0L)),
+    prop_map(prop_string(min_length = 0L)),
+    prop_array(prop_struct(list(
+      value = prop_string(min_length = 0L),
+      language = prop_string(nullable = TRUE)
+    )))
+  ),
+  nullable = TRUE
+)
+
+# An array of `Field` objects. `Field` declares two such properties, which
+# refer to `Field` itself.
+field_list <- new_property(
+  class = NULL | class_list,
   validator = function(value) {
     if (is.null(value)) {
       return(NULL)
     }
-    if (length(value) == 0L || anyNA(value)) {
-      return("must be NULL or a character vector without NAs")
+    ok <- vapply(value, \(v) is_node(v, "Field"), logical(1L))
+    if (!all(ok) || !is.null(names(value))) {
+      return("must be NULL or an unnamed list of Field objects")
     }
     NULL
   }
 )
 
-# A JSON string, including empty and whitespace-only strings such as a
-# separator of " ".
-optional_string <- new_property(
-  class = NULL | class_character,
-  validator = function(value) {
-    if (!is.null(value) && (length(value) != 1L || is.na(value))) {
-      return("must be NULL or a character scalar")
-    }
-    NULL
-  }
-)
-
-optional_strings <- new_property(
-  class = NULL | class_character,
-  validator = function(value) {
-    if (!is.null(value) && (length(value) == 0L || anyNA(value))) {
-      return("must be NULL or a non-empty character vector without NAs")
-    }
-    NULL
-  }
-)
-
-optional_count <- new_property(
-  class = NULL | class_numeric,
-  validator = function(value) {
-    if (!is.null(value) && (length(value) != 1L || is.na(value))) {
-      return("must be NULL or a number")
-    }
-    NULL
-  }
-)
-
-# A list of JSON values keyed by canonical JSON-LD key.
-optional_other <- new_property(
-  class = NULL | class_list,
-  validator = function(value) {
-    if (
-      !is.null(value) &&
-        length(value) > 0L &&
-        (is.null(names(value)) || !all(nzchar(names(value))))
-    ) {
-      return("must be NULL or a fully named list")
-    }
-    NULL
-  }
-)
-
-# A list whose elements are all of the named node classes.
-node_list <- function(...) {
-  classes <- c(...)
-  new_property(
-    class = NULL | class_list,
-    validator = function(value) {
-      if (is.null(value)) {
-        return(NULL)
-      }
-      ok <- vapply(value, \(v) is_node(v, classes), logical(1L))
-      if (!all(ok)) {
-        return(paste0(
-          "must be NULL or a list of ",
-          paste(classes, collapse = " or "),
-          " objects"
-        ))
-      }
-      NULL
-    }
-  )
-}
-
-# A `node_list()` property `name` whose elements are named by `node_key()`, so
+# A map of nodes, property `name` of the class, keyed by `node_keys()`, so
 # that `x@record_set$titanic` selects a node. The setter runs in the
 # constructor and on every assignment.
-named_node_list <- function(name, ...) {
-  property <- node_list(...)
+node_map <- function(name, values) {
+  property <- prop_map(values, min_members = 0L, nullable = TRUE)
   property[["setter"]] <- function(self, value) {
     if (!is.null(value)) {
-      names(value) <- vapply(value, node_key, character(1L))
+      names(value) <- node_keys(value)
     }
     prop(self, name) <- value
     self
   }
   property
+}
+
+# The key of each node: its `@id`, else its first name, else its position,
+# made distinct by `make.unique()`. A document may repeat an `@id`, which
+# `validate_croissant()` reports.
+node_keys <- function(nodes) {
+  keys <- vapply(nodes, node_key, character(1L))
+  blank <- !nzchar(keys)
+  keys[blank] <- as.character(which(blank))
+  make.unique(keys)
 }
 
 # `@id` of a node, else its first name, else "".
@@ -119,43 +107,15 @@ node_key <- function(x) {
   x@id %||% first_text(x@name) %||% ""
 }
 
-# Licenses: a character vector, or a list of strings and `CreativeWork`
-# objects.
-optional_license <- new_property(
-  class = NULL | class_character | class_list,
-  validator = function(value) {
-    if (is.null(value)) {
-      return(NULL)
-    }
-    if (is.character(value)) {
-      if (length(value) == 0L || anyNA(value)) {
-        return("must be a non-empty character vector without NAs")
-      }
-      return(NULL)
-    }
-    ok <- vapply(
-      value,
-      \(v) is_string(v) || is_node(v, "CreativeWork"),
-      logical(1L)
-    )
-    if (length(value) == 0L || !all(ok)) {
-      return(
-        "must be a character vector or a list of strings and CreativeWork objects"
-      )
-    }
-    NULL
-  }
-)
-
 
 # %% Person ----
 #' Person: a person who created or published a dataset
 #'
+#' @param type Character: JSON-LD `@type`, the constant `"sc:Person"`.
 #' @param id Optional Character: `@id`.
-#' @param name Optional Character: Name, or a character vector named by
-#' language tag.
-#' @param description Optional Character: Description, or a character vector
-#' named by language tag.
+#' @param name Optional Character or List: Name, as text (see [croissant-package]).
+#' @param description Optional Character or List: Description, as text (see
+#' [croissant-package]).
 #' @param email Optional Character: Email address.
 #' @param url Optional Character: URL.
 #' @param other_properties Optional List: Properties without a typed
@@ -172,12 +132,13 @@ Person <- new_class(
   name = "Person",
   package = "croissant",
   properties = list(
-    id = optional_string,
-    name = optional_text,
-    description = optional_text,
-    email = optional_string,
-    url = optional_string,
-    other_properties = optional_other
+    type = prop_string(const = "sc:Person"),
+    id = nullable_string,
+    name = nullable_text,
+    description = nullable_text,
+    email = nullable_string,
+    url = nullable_string,
+    other_properties = other_members
   )
 ) # /croissant::Person
 
@@ -185,11 +146,11 @@ Person <- new_class(
 # %% Organization ----
 #' Organization: an organization that created or published a dataset
 #'
+#' @param type Character: JSON-LD `@type`, the constant `"sc:Organization"`.
 #' @param id Optional Character: `@id`.
-#' @param name Optional Character: Name, or a character vector named by
-#' language tag.
-#' @param description Optional Character: Description, or a character vector
-#' named by language tag.
+#' @param name Optional Character or List: Name, as text (see [croissant-package]).
+#' @param description Optional Character or List: Description, as text (see
+#' [croissant-package]).
 #' @param email Optional Character: Email address.
 #' @param url Optional Character: URL.
 #' @param other_properties Optional List: Properties without a typed
@@ -206,12 +167,13 @@ Organization <- new_class(
   name = "Organization",
   package = "croissant",
   properties = list(
-    id = optional_string,
-    name = optional_text,
-    description = optional_text,
-    email = optional_string,
-    url = optional_string,
-    other_properties = optional_other
+    type = prop_string(const = "sc:Organization"),
+    id = nullable_string,
+    name = nullable_text,
+    description = nullable_text,
+    email = nullable_string,
+    url = nullable_string,
+    other_properties = other_members
   )
 ) # /croissant::Organization
 
@@ -219,11 +181,11 @@ Organization <- new_class(
 # %% CreativeWork ----
 #' CreativeWork: a license or other work named by a dataset
 #'
+#' @param type Character: JSON-LD `@type`, the constant `"sc:CreativeWork"`.
 #' @param id Optional Character: `@id`.
-#' @param name Optional Character: Name, or a character vector named by
-#' language tag.
-#' @param description Optional Character: Description, or a character vector
-#' named by language tag.
+#' @param name Optional Character or List: Name, as text (see [croissant-package]).
+#' @param description Optional Character or List: Description, as text (see
+#' [croissant-package]).
 #' @param url Optional Character: URL.
 #' @param other_properties Optional List: Properties without a typed
 #' counterpart, keyed by canonical JSON-LD key, with their parsed JSON values.
@@ -239,13 +201,39 @@ CreativeWork <- new_class(
   name = "CreativeWork",
   package = "croissant",
   properties = list(
-    id = optional_string,
-    name = optional_text,
-    description = optional_text,
-    url = optional_string,
-    other_properties = optional_other
+    type = prop_string(const = "sc:CreativeWork"),
+    id = nullable_string,
+    name = nullable_text,
+    description = nullable_text,
+    url = nullable_string,
+    other_properties = other_members
   )
 ) # /croissant::CreativeWork
+
+
+# %% agent_list ----
+# Agents: `Person` and `Organization` objects, told apart by `type`.
+agent_list <- prop_array(
+  prop_union(list(prop_instance(Person), prop_instance(Organization))),
+  min_items = 0L,
+  nullable = TRUE
+)
+
+
+# %% nullable_license ----
+# Licenses: strings, or a list of strings and `CreativeWork` objects.
+nullable_license <- prop_union(
+  list(
+    prop_array(prop_string(min_length = 0L)),
+    prop_array(
+      prop_union(list(
+        prop_string(min_length = 0L),
+        prop_instance(CreativeWork)
+      ))
+    )
+  ),
+  nullable = TRUE
+)
 
 
 # %% Extract ----
@@ -269,10 +257,10 @@ Extract <- new_class(
   name = "Extract",
   package = "croissant",
   properties = list(
-    column = optional_string,
-    file_property = optional_string,
-    json_path = optional_string,
-    other_properties = optional_other
+    column = nullable_string,
+    file_property = nullable_string,
+    json_path = nullable_string,
+    other_properties = other_members
   )
 ) # /croissant::Extract
 
@@ -280,7 +268,7 @@ Extract <- new_class(
 # %% Transform ----
 #' Transform: a transformation applied to extracted values
 #'
-#' @param format Optional Character: Format used to parse the value, such as
+#' @param format Optional Character: Format by which the value is parsed, such as
 #' a date format.
 #' @param json_path Optional Character: JSONPath expression.
 #' @param read_lines Optional Logical: Whether to split the content into
@@ -289,7 +277,7 @@ Extract <- new_class(
 #' group is kept.
 #' @param replace Optional Character: Replacement pattern.
 #' @param sampling_rate Optional Numeric: Sampling rate of audio content.
-#' @param separator Optional Character: Separator used to split the value.
+#' @param separator Optional Character: Separator that splits the value.
 #' @param un_archive Optional Logical: Whether to extract an archive.
 #' @param other_properties Optional List: Properties without a typed
 #' counterpart, keyed by canonical JSON-LD key, with their parsed JSON values.
@@ -305,15 +293,15 @@ Transform <- new_class(
   name = "Transform",
   package = "croissant",
   properties = list(
-    format = optional_string,
-    json_path = optional_string,
+    format = nullable_string,
+    json_path = nullable_string,
     read_lines = prop_boolean(default = NULL, nullable = TRUE),
-    regex = optional_string,
-    replace = optional_string,
-    sampling_rate = optional_count,
-    separator = optional_string,
+    regex = nullable_string,
+    replace = nullable_string,
+    sampling_rate = nullable_number,
+    separator = nullable_string,
     un_archive = prop_boolean(default = NULL, nullable = TRUE),
-    other_properties = optional_other
+    other_properties = other_members
   )
 ) # /croissant::Transform
 
@@ -346,15 +334,19 @@ Source <- new_class(
   name = "Source",
   package = "croissant",
   properties = list(
-    file_object = optional_string,
-    file_set = optional_string,
-    record_set = optional_string,
-    field = optional_string,
-    extract = NULL | Extract,
-    transform = node_list("Transform"),
-    format = optional_string,
-    sampling_rate = optional_count,
-    other_properties = optional_other
+    file_object = nullable_string,
+    file_set = nullable_string,
+    record_set = nullable_string,
+    field = nullable_string,
+    extract = prop_instance(Extract, nullable = TRUE),
+    transform = prop_array(
+      prop_instance(Transform),
+      min_items = 0L,
+      nullable = TRUE
+    ),
+    format = nullable_string,
+    sampling_rate = nullable_number,
+    other_properties = other_members
   )
 ) # /croissant::Source
 
@@ -378,9 +370,9 @@ ParentField <- new_class(
   name = "ParentField",
   package = "croissant",
   properties = list(
-    source = NULL | Source,
-    references = NULL | Source,
-    other_properties = optional_other
+    source = prop_instance(Source, nullable = TRUE),
+    references = prop_instance(Source, nullable = TRUE),
+    other_properties = other_members
   )
 ) # /croissant::ParentField
 
@@ -388,11 +380,11 @@ ParentField <- new_class(
 # %% Field ----
 #' Field: one column or attribute of a record set
 #'
+#' @param type Character: JSON-LD `@type`, the constant `"cr:Field"`.
 #' @param id Optional Character: `@id`, unique within the document.
-#' @param name Optional Character: Name, or a character vector named by
-#' language tag.
-#' @param description Optional Character: Description, or a character vector
-#' named by language tag.
+#' @param name Optional Character or List: Name, as text (see [croissant-package]).
+#' @param description Optional Character or List: Description, as text (see
+#' [croissant-package]).
 #' @param data_type Optional Character: Data types, as compact IRIs such as
 #' `"sc:Text"` or `"sc:Integer"`.
 #' @param source Optional `Source` object: Where the values come from.
@@ -425,21 +417,22 @@ Field <- new_class(
   name = "Field",
   package = "croissant",
   properties = list(
-    id = optional_string,
-    name = optional_text,
-    description = optional_text,
-    data_type = optional_strings,
-    source = NULL | Source,
-    references = NULL | Source,
-    sub_field = node_list("Field"),
-    parent_field = NULL | ParentField,
-    annotation = node_list("Field"),
+    type = prop_string(const = "cr:Field"),
+    id = nullable_string,
+    name = nullable_text,
+    description = nullable_text,
+    data_type = nullable_strings,
+    source = prop_instance(Source, nullable = TRUE),
+    references = prop_instance(Source, nullable = TRUE),
+    sub_field = field_list,
+    parent_field = prop_instance(ParentField, nullable = TRUE),
+    annotation = field_list,
     repeated = prop_boolean(default = NULL, nullable = TRUE),
     is_array = prop_boolean(default = NULL, nullable = TRUE),
-    array_shape = optional_string,
-    equivalent_property = optional_strings,
-    value = class_any,
-    other_properties = optional_other
+    array_shape = nullable_string,
+    equivalent_property = nullable_strings,
+    value = prop_any(),
+    other_properties = other_members
   )
 ) # /croissant::Field
 
@@ -447,11 +440,11 @@ Field <- new_class(
 # %% RecordSet ----
 #' RecordSet: a set of records with a common structure
 #'
+#' @param type Character: JSON-LD `@type`, the constant `"cr:RecordSet"`.
 #' @param id Optional Character: `@id`, unique within the document.
-#' @param name Optional Character: Name, or a character vector named by
-#' language tag.
-#' @param description Optional Character: Description, or a character vector
-#' named by language tag.
+#' @param name Optional Character or List: Name, as text (see [croissant-package]).
+#' @param description Optional Character or List: Description, as text (see
+#' [croissant-package]).
 #' @param data_type Optional Character: Data types, such as
 #' `"sc:Enumeration"`.
 #' @param key Optional Character: `@id` of each field that forms the record
@@ -475,16 +468,21 @@ RecordSet <- new_class(
   name = "RecordSet",
   package = "croissant",
   properties = list(
-    id = optional_string,
-    name = optional_text,
-    description = optional_text,
-    data_type = optional_strings,
-    key = optional_strings,
-    field = node_list("Field"),
-    annotation = node_list("Field"),
-    data = NULL | class_list,
-    examples = NULL | class_list,
-    other_properties = optional_other
+    type = prop_string(const = "cr:RecordSet"),
+    id = nullable_string,
+    name = nullable_text,
+    description = nullable_text,
+    data_type = nullable_strings,
+    key = nullable_strings,
+    field = prop_array(prop_instance(Field), min_items = 0L, nullable = TRUE),
+    annotation = prop_array(
+      prop_instance(Field),
+      min_items = 0L,
+      nullable = TRUE
+    ),
+    data = nullable_records,
+    examples = nullable_records,
+    other_properties = other_members
   )
 ) # /croissant::RecordSet
 
@@ -492,11 +490,11 @@ RecordSet <- new_class(
 # %% FileObject ----
 #' FileObject: a single file of the dataset
 #'
+#' @param type Character: JSON-LD `@type`, the constant `"cr:FileObject"`.
 #' @param id Optional Character: `@id`, unique within the document.
-#' @param name Optional Character: Name, or a character vector named by
-#' language tag.
-#' @param description Optional Character: Description, or a character vector
-#' named by language tag.
+#' @param name Optional Character or List: Name, as text (see [croissant-package]).
+#' @param description Optional Character or List: Description, as text (see
+#' [croissant-package]).
 #' @param content_url Optional Character: URL or relative path of the file.
 #' @param content_size Optional Character: Size, such as `"117743 B"`.
 #' @param encoding_format Optional Character: MIME types, such as
@@ -526,18 +524,19 @@ FileObject <- new_class(
   name = "FileObject",
   package = "croissant",
   properties = list(
-    id = optional_string,
-    name = optional_text,
-    description = optional_text,
-    content_url = optional_string,
-    content_size = optional_string,
-    encoding_format = optional_strings,
-    sha256 = optional_string,
-    md5 = optional_string,
-    contained_in = optional_strings,
-    same_as = optional_strings,
-    source = NULL | Source,
-    other_properties = optional_other
+    type = prop_string(const = "cr:FileObject"),
+    id = nullable_string,
+    name = nullable_text,
+    description = nullable_text,
+    content_url = nullable_string,
+    content_size = nullable_string,
+    encoding_format = nullable_strings,
+    sha256 = nullable_string,
+    md5 = nullable_string,
+    contained_in = nullable_strings,
+    same_as = nullable_strings,
+    source = prop_instance(Source, nullable = TRUE),
+    other_properties = other_members
   )
 ) # /croissant::FileObject
 
@@ -545,11 +544,11 @@ FileObject <- new_class(
 # %% FileSet ----
 #' FileSet: a set of files matched by glob patterns
 #'
+#' @param type Character: JSON-LD `@type`, the constant `"cr:FileSet"`.
 #' @param id Optional Character: `@id`, unique within the document.
-#' @param name Optional Character: Name, or a character vector named by
-#' language tag.
-#' @param description Optional Character: Description, or a character vector
-#' named by language tag.
+#' @param name Optional Character or List: Name, as text (see [croissant-package]).
+#' @param description Optional Character or List: Description, as text (see
+#' [croissant-package]).
 #' @param encoding_format Optional Character: MIME types of the files.
 #' @param includes Optional Character: Glob patterns of the files included.
 #' @param excludes Optional Character: Glob patterns of the files excluded.
@@ -575,14 +574,15 @@ FileSet <- new_class(
   name = "FileSet",
   package = "croissant",
   properties = list(
-    id = optional_string,
-    name = optional_text,
-    description = optional_text,
-    encoding_format = optional_strings,
-    includes = optional_strings,
-    excludes = optional_strings,
-    contained_in = optional_strings,
-    other_properties = optional_other
+    type = prop_string(const = "cr:FileSet"),
+    id = nullable_string,
+    name = nullable_text,
+    description = nullable_text,
+    encoding_format = nullable_strings,
+    includes = nullable_strings,
+    excludes = nullable_strings,
+    contained_in = nullable_strings,
+    other_properties = other_members
   )
 ) # /croissant::FileSet
 
@@ -594,13 +594,13 @@ FileSet <- new_class(
 #' Dates are kept as the strings the document gives. Properties are read and
 #' set with `$` and `[[`, as are the properties of the node classes.
 #'
+#' @param type Character: JSON-LD `@type`, the constant `"sc:Dataset"`.
 #' @param version Character \{"1.0", "1.1"\}: Croissant version the metadata
 #' conforms to.
 #' @param id Optional Character: `@id` of the dataset.
-#' @param name Optional Character: Name, or a character vector named by
-#' language tag.
-#' @param description Optional Character: Description, or a character vector
-#' named by language tag.
+#' @param name Optional Character or List: Name, as text (see [croissant-package]).
+#' @param description Optional Character or List: Description, as text (see
+#' [croissant-package]).
 #' @param conforms_to Optional Character: IRIs of the specifications the
 #' metadata conforms to. [write_croissant()] writes the Croissant IRI of
 #' `version` when this omits it.
@@ -623,10 +623,11 @@ FileSet <- new_class(
 #' `"en"`.
 #' @param is_live_dataset Optional Logical: Whether the dataset changes over
 #' time, in which case its files need no checksum.
-#' @param distribution Optional List: `FileObject` and `FileSet` objects,
-#' named by `@id`.
-#' @param record_set Optional List: `RecordSet` objects, named by `@id`, so
-#' that `x@record_set$<id>` selects one.
+#' @param distribution Optional List: `FileObject` and `FileSet` objects, each
+#' named by its `@id`, else its first name, else its position, made distinct
+#' by [make.unique()].
+#' @param record_set Optional List: `RecordSet` objects, named as
+#' `distribution` is, so that `x@record_set$<id>` selects one.
 #' @param data_collection,data_collection_type,data_collection_missing_data,data_collection_raw_data Optional Character: How the data was collected (`rai:dataCollection`, `rai:dataCollectionType`, `rai:dataCollectionMissingData`, `rai:dataCollectionRawData`).
 #' @param data_imputation_protocol,data_preprocessing_protocol,data_manipulation_protocol Optional Character: How the data was processed (`rai:dataImputationProtocol`, `rai:dataPreprocessingProtocol`, `rai:dataManipulationProtocol`).
 #' @param data_annotation_protocol,data_annotation_platform,data_annotation_analysis,annotations_per_item,annotator_demographics,machine_annotation_tools Optional Character: How the data was annotated (`rai:dataAnnotationProtocol`, `rai:dataAnnotationPlatform`, `rai:dataAnnotationAnalysis`, `rai:annotationsPerItem`, `rai:annotatorDemographics`, `rai:machineAnnotationTools`).
@@ -655,51 +656,72 @@ Croissant <- new_class(
   name = "Croissant",
   package = "croissant",
   properties = list(
+    type = prop_string(const = "sc:Dataset"),
     version = prop_string(default = "1.1", enum = .croissant_versions),
-    id = optional_string,
-    name = optional_text,
-    description = optional_text,
-    conforms_to = optional_strings,
-    dataset_version = optional_string,
-    sd_version = optional_string,
-    license = optional_license,
-    sd_license = optional_license,
-    url = optional_string,
-    same_as = optional_strings,
-    cite_as = optional_string,
-    creator = node_list("Person", "Organization"),
-    publisher = node_list("Person", "Organization"),
-    date_created = optional_string,
-    date_modified = optional_string,
-    date_published = optional_string,
-    keywords = optional_strings,
-    in_language = optional_strings,
+    id = nullable_string,
+    name = nullable_text,
+    description = nullable_text,
+    conforms_to = nullable_strings,
+    dataset_version = nullable_string,
+    sd_version = nullable_string,
+    license = nullable_license,
+    sd_license = nullable_license,
+    url = nullable_string,
+    same_as = nullable_strings,
+    cite_as = nullable_string,
+    creator = agent_list,
+    publisher = agent_list,
+    date_created = nullable_string,
+    date_modified = nullable_string,
+    date_published = nullable_string,
+    keywords = nullable_strings,
+    in_language = nullable_strings,
     is_live_dataset = prop_boolean(default = NULL, nullable = TRUE),
-    distribution = named_node_list("distribution", "FileObject", "FileSet"),
-    record_set = named_node_list("record_set", "RecordSet"),
-    data_collection = optional_strings,
-    data_collection_type = optional_strings,
-    data_collection_missing_data = optional_strings,
-    data_collection_raw_data = optional_strings,
-    data_imputation_protocol = optional_strings,
-    data_preprocessing_protocol = optional_strings,
-    data_manipulation_protocol = optional_strings,
-    data_annotation_protocol = optional_strings,
-    data_annotation_platform = optional_strings,
-    data_annotation_analysis = optional_strings,
-    annotations_per_item = optional_strings,
-    annotator_demographics = optional_strings,
-    machine_annotation_tools = optional_strings,
-    data_biases = optional_strings,
-    data_use_cases = optional_strings,
-    data_limitations = optional_strings,
-    data_social_impact = optional_strings,
-    personal_sensitive_information = optional_strings,
-    data_release_maintenance_plan = optional_strings,
-    other_properties = optional_other,
-    base = optional_string
+    distribution = node_map(
+      "distribution",
+      prop_union(list(prop_instance(FileObject), prop_instance(FileSet)))
+    ),
+    record_set = node_map("record_set", prop_instance(RecordSet)),
+    data_collection = nullable_strings,
+    data_collection_type = nullable_strings,
+    data_collection_missing_data = nullable_strings,
+    data_collection_raw_data = nullable_strings,
+    data_imputation_protocol = nullable_strings,
+    data_preprocessing_protocol = nullable_strings,
+    data_manipulation_protocol = nullable_strings,
+    data_annotation_protocol = nullable_strings,
+    data_annotation_platform = nullable_strings,
+    data_annotation_analysis = nullable_strings,
+    annotations_per_item = nullable_strings,
+    annotator_demographics = nullable_strings,
+    machine_annotation_tools = nullable_strings,
+    data_biases = nullable_strings,
+    data_use_cases = nullable_strings,
+    data_limitations = nullable_strings,
+    data_social_impact = nullable_strings,
+    personal_sensitive_information = nullable_strings,
+    data_release_maintenance_plan = nullable_strings,
+    other_properties = other_members,
+    base = nullable_string
   )
 ) # /croissant::Croissant
+
+
+# %% class_type ----
+#' JSON-LD `@type` of a node class
+#'
+#' @param cls S7 class: Node class.
+#'
+#' @return Character: The constant of the class's `type` property, or NULL for
+#' a class without one.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+class_type <- function(cls) {
+  type <- cls@properties[["type"]]
+  if (is.null(type)) NULL else prop_spec(type)[["const"]]
+} # /croissant::class_type
 
 
 # %% .node_terms ----
@@ -711,7 +733,7 @@ Croissant <- new_class(
 # https://schema.org/containedIn in Croissant 1.0 and cr:containedIn in 1.1,
 # and Field `value` is https://schema.org/value in mlcroissant and cr:value in
 # the 1.1 context; the schema.org forms canonicalize to `sc:containedIn` and
-# `sc:value`. `type` is the `@type` the class reads and writes.
+# `sc:value`. `type` is the `@type` the class reads and writes, the constant of its `type` property.
 .term <- function(key, kind, node = NULL, alt = NULL, fallback = FALSE) {
   list(key = key, kind = kind, node = node, alt = alt, fallback = fallback)
 }
@@ -747,10 +769,10 @@ Croissant <- new_class(
 )
 
 .node_terms <- list(
-  Person = list(type = "sc:Person", terms = .agent_terms),
-  Organization = list(type = "sc:Organization", terms = .agent_terms),
+  Person = list(type = class_type(Person), terms = .agent_terms),
+  Organization = list(type = class_type(Organization), terms = .agent_terms),
   CreativeWork = list(
-    type = "sc:CreativeWork",
+    type = class_type(CreativeWork),
     terms = .agent_terms[c("id", "name", "description", "url")]
   ),
   Extract = list(
@@ -795,7 +817,7 @@ Croissant <- new_class(
     )
   ),
   Field = list(
-    type = "cr:Field",
+    type = class_type(Field),
     terms = list(
       id = .term("@id", "string"),
       name = .term("name", "text"),
@@ -814,7 +836,7 @@ Croissant <- new_class(
     )
   ),
   RecordSet = list(
-    type = "cr:RecordSet",
+    type = class_type(RecordSet),
     terms = list(
       id = .term("@id", "string"),
       name = .term("name", "text"),
@@ -828,7 +850,7 @@ Croissant <- new_class(
     )
   ),
   FileObject = list(
-    type = "cr:FileObject",
+    type = class_type(FileObject),
     terms = list(
       id = .term("@id", "string"),
       name = .term("name", "text"),
@@ -849,7 +871,7 @@ Croissant <- new_class(
     )
   ),
   FileSet = list(
-    type = "cr:FileSet",
+    type = class_type(FileSet),
     terms = list(
       id = .term("@id", "string"),
       name = .term("name", "text"),
@@ -866,7 +888,7 @@ Croissant <- new_class(
     )
   ),
   Croissant = list(
-    type = "sc:Dataset",
+    type = class_type(Croissant),
     terms = c(
       list(
         id = .term("@id", "string"),

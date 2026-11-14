@@ -5,6 +5,7 @@
 \title{CreativeWork: a license or other work named by a dataset}
 \usage{
 CreativeWork(
+  type = "sc:CreativeWork",
   id = NULL,
   name = NULL,
   description = NULL,
@@ -13,13 +14,14 @@ CreativeWork(
 )
 }
 \arguments{
+\item{type}{Character: JSON-LD \verb{@type}, the constant \code{"sc:CreativeWork"}.}
+
 \item{id}{Optional Character: \verb{@id}.}
 
-\item{name}{Optional Character: Name, or a character vector named by
-language tag.}
+\item{name}{Optional Character or List: Name, as text (see \link{croissant-package}).}
 
-\item{description}{Optional Character: Description, or a character vector
-named by language tag.}
+\item{description}{Optional Character or List: Description, as text (see
+\link{croissant-package}).}
 
 \item{url}{Optional Character: URL.}
 

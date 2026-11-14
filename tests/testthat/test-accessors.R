@@ -171,8 +171,12 @@ test_that("record sets and files are named by `@id`", {
   expect_identical(x@record_set$people@id, "people")
   x@record_set <- c(x@record_set, list(RecordSet(name = "extra")))
   expect_identical(names(x@record_set), c("people", "extra"))
+  # A node without `@id` or name is keyed by its position, and repeated keys
+  # are made distinct.
   x@record_set[[3L]] <- RecordSet()
-  expect_identical(names(x@record_set), c("people", "extra", ""))
+  expect_identical(names(x@record_set), c("people", "extra", "3"))
+  x@record_set <- c(x@record_set, list(RecordSet(id = "people")))
+  expect_identical(names(x@record_set), c("people", "extra", "3", "people.1"))
   json <- jsonlite::parse_json(write_croissant(x))
   expect_null(names(json[["recordSet"]]))
   expect_null(names(json[["distribution"]]))

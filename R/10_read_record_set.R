@@ -130,7 +130,7 @@ read_record_set <- function(
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  check_optional_character_scalar(base)
+  check_nullable_character_scalar(base)
   check_character_scalar(cache_dir)
   if (output == "tibble") {
     check_dependencies("tibble")
@@ -213,7 +213,7 @@ table_output <- function(x, output) {
 #' @noRd
 find_record_set <- function(x, record_set) {
   for (rs in x@record_set) {
-    if (identical(rs@id, record_set) || record_set %in% rs@name) {
+    if (identical(rs@id, record_set) || record_set %in% text_strings(rs@name)) {
       return(rs)
     }
   }

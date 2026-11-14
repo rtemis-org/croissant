@@ -5,6 +5,7 @@
 \title{Croissant: metadata of one dataset}
 \usage{
 Croissant(
+  type = "sc:Dataset",
   version = "1.1",
   id = NULL,
   name = NULL,
@@ -51,16 +52,17 @@ Croissant(
 )
 }
 \arguments{
+\item{type}{Character: JSON-LD \verb{@type}, the constant \code{"sc:Dataset"}.}
+
 \item{version}{Character \{"1.0", "1.1"\}: Croissant version the metadata
 conforms to.}
 
 \item{id}{Optional Character: \verb{@id} of the dataset.}
 
-\item{name}{Optional Character: Name, or a character vector named by
-language tag.}
+\item{name}{Optional Character or List: Name, as text (see \link{croissant-package}).}
 
-\item{description}{Optional Character: Description, or a character vector
-named by language tag.}
+\item{description}{Optional Character or List: Description, as text (see
+\link{croissant-package}).}
 
 \item{conforms_to}{Optional Character: IRIs of the specifications the
 metadata conforms to. \code{\link[=write_croissant]{write_croissant()}} writes the Croissant IRI of
@@ -100,11 +102,12 @@ document, in the form of \code{license}.}
 \item{is_live_dataset}{Optional Logical: Whether the dataset changes over
 time, in which case its files need no checksum.}
 
-\item{distribution}{Optional List: \code{FileObject} and \code{FileSet} objects,
-named by \verb{@id}.}
+\item{distribution}{Optional List: \code{FileObject} and \code{FileSet} objects, each
+named by its \verb{@id}, else its first name, else its position, made distinct
+by \code{\link[=make.unique]{make.unique()}}.}
 
-\item{record_set}{Optional List: \code{RecordSet} objects, named by \verb{@id}, so
-that \verb{x@record_set$<id>} selects one.}
+\item{record_set}{Optional List: \code{RecordSet} objects, named as
+\code{distribution} is, so that \verb{x@record_set$<id>} selects one.}
 
 \item{data_collection, data_collection_type, data_collection_missing_data, data_collection_raw_data}{Optional Character: How the data was collected (\code{rai:dataCollection}, \code{rai:dataCollectionType}, \code{rai:dataCollectionMissingData}, \code{rai:dataCollectionRawData}).}
 

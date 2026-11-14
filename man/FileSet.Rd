@@ -5,6 +5,7 @@
 \title{FileSet: a set of files matched by glob patterns}
 \usage{
 FileSet(
+  type = "cr:FileSet",
   id = NULL,
   name = NULL,
   description = NULL,
@@ -16,13 +17,14 @@ FileSet(
 )
 }
 \arguments{
+\item{type}{Character: JSON-LD \verb{@type}, the constant \code{"cr:FileSet"}.}
+
 \item{id}{Optional Character: \verb{@id}, unique within the document.}
 
-\item{name}{Optional Character: Name, or a character vector named by
-language tag.}
+\item{name}{Optional Character or List: Name, as text (see \link{croissant-package}).}
 
-\item{description}{Optional Character: Description, or a character vector
-named by language tag.}
+\item{description}{Optional Character or List: Description, as text (see
+\link{croissant-package}).}
 
 \item{encoding_format}{Optional Character: MIME types of the files.}
 
