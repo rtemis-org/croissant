@@ -27,3 +27,4 @@
 ^CRAN-SUBMISSION$
 ^justfile$
 ^\.style-scan-ignore$
+^vignettes/articles$

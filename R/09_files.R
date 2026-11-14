@@ -254,7 +254,9 @@ fetch <- function(ctx, url, sha256 = NULL, md5 = NULL) {
     )
   }
   if (is_relative) {
-    if (!is.null(base) && grepl("^https?://", base)) {
+    if (!is.null(base) && !is.null(kaggle_download_parts(base))) {
+      url <- kaggle_resolve(base, url)
+    } else if (!is.null(base) && grepl("^https?://", base)) {
       url <- paste0(sub("/+$", "", base), "/", url)
     } else {
       path <- file.path(base %||% getwd(), url)
@@ -301,6 +303,12 @@ fetch <- function(ctx, url, sha256 = NULL, md5 = NULL) {
 #' @keywords internal
 #' @noRd
 download_cached <- function(ctx, url, sha256, md5) {
+  if (!is.null(sha256)) {
+    sha256 <- checksum_hex(sha256, 32L)
+  }
+  if (!is.null(md5)) {
+    md5 <- checksum_hex(md5, 16L)
+  }
   key <- sha256 %||%
     md5 %||%
     sha256_string(url)
@@ -374,6 +382,39 @@ checksum_ok <- function(path, sha256, md5) {
   }
   TRUE
 } # /croissant::checksum_ok
+
+
+# %% checksum_hex ----
+#' A checksum as lowercase hexadecimal
+#'
+#' A checksum is hexadecimal, or base64 of the digest bytes, as Kaggle writes
+#' `md5`; mlcroissant accepts both forms.
+#'
+#' @param x Character: Checksum.
+#' @param n_bytes Integer: Length of the digest in bytes: 16 for MD5, 32 for
+#' SHA-256.
+#'
+#' @return Character: The checksum in lowercase hexadecimal; `x` unchanged
+#' when it is neither form, so that it matches no file.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+checksum_hex <- function(x, n_bytes) {
+  x <- unclass(x)
+  if (grepl(paste0("^[0-9A-Fa-f]{", 2L * n_bytes, "}$"), x)) {
+    return(tolower(x))
+  }
+  if (!grepl("^[A-Za-z0-9+/]+={0,2}$", x)) {
+    return(x)
+  }
+  digest <- tryCatch(openssl::base64_decode(x), error = function(e) NULL)
+  if (length(digest) == n_bytes) {
+    paste(as.character(digest), collapse = "")
+  } else {
+    x
+  }
+} # /croissant::checksum_hex
 
 
 # %% sha256_file ----

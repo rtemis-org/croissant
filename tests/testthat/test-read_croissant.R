@@ -101,6 +101,35 @@ test_that("the read error states the number of problems", {
   )
 })
 
+test_that("a numeric dataset version reads as mlcroissant casts it", {
+  doc <- function(version) {
+    to_json_text(
+      list(
+        `@context` = croissant_context("1.1"),
+        `@type` = "sc:Dataset",
+        name = "versioned",
+        conformsTo = "http://mlcommons.org/croissant/1.1",
+        version = version
+      ),
+      pretty = FALSE
+    )
+  }
+  read_version <- function(json) {
+    read_croissant(json, verbosity = 0L)@dataset_version
+  }
+  expect_identical(read_version(doc(3L)), "3.0.0")
+  expect_identical(
+    read_version(sub(":3}", ":3.0}", doc(3L), fixed = TRUE)),
+    "3.0.0"
+  )
+  expect_identical(read_version(doc(1.5)), "1.5.0")
+  expect_identical(read_version(doc("2.1.0")), "2.1.0")
+  expect_error(
+    read_croissant(doc(TRUE), verbosity = 0L),
+    class = "croissant_read_error"
+  )
+})
+
 test_that("a 0.8 document raises croissant_version_error", {
   expect_error(
     read_croissant(

@@ -1,0 +1,160 @@
+---
+title: "One dataset on Hugging Face and Kaggle"
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+The rtemis demo dataset is hosted on two sites: as [rtemis/demo](https://huggingface.co/datasets/rtemis/demo) on the Hugging Face Hub and as [rtemisorg/rtemis-demo](https://www.kaggle.com/datasets/rtemisorg/rtemis-demo) on Kaggle. Both copies hold the same two Parquet files, `data/regression.parquet` and `data/classification.parquet`, and the same Croissant file, `croissant.json`, which describes them.
+
+Each site also generates its own Croissant metadata for every dataset it hosts. This article reads the metadata each site generates, compares the two documents with the dataset's own `croissant.json`, and reads the records from each site through the dataset's own metadata.
+
+The article downloads from both sites when it is built.
+
+```{r library}
+library(croissant)
+# One cache per site, so that each site's files download from that site
+cache_hf <- tempfile("croissant_hf_")
+cache_kaggle <- tempfile("croissant_kaggle_")
+```
+
+## The metadata each site generates
+
+`read_croissant_hf()` reads the metadata the Hub generates from its Parquet conversion of the dataset and from the dataset card.
+
+```{r hf-generated}
+hf_generated <- read_croissant_hf("rtemis/demo")
+hf_generated
+```
+
+`read_croissant_kaggle()` reads the metadata Kaggle generates, the document that the dataset page offers as "Export metadata as Croissant".
+
+```{r kaggle-generated}
+kaggle_generated <- read_croissant_kaggle("rtemisorg/rtemis-demo")
+kaggle_generated
+```
+
+## The dataset's own metadata
+
+`croissant.json` is an ordinary file of each copy of the dataset; neither site reads it or changes it. `read_croissant()` reads it from the Hub by its `hf://datasets/` path, here at the tag `v1.0.0`, and `read_croissant_kaggle()` reads it from Kaggle when given its path in the dataset as `file`.
+
+```{r own}
+own_hf <- read_croissant("hf://datasets/rtemis/demo@v1.0.0/croissant.json")
+own_kaggle <- read_croissant_kaggle("rtemisorg/rtemis-demo", file = "croissant.json")
+own_hf
+```
+
+The two objects differ only in `base`, the location each document's relative `contentUrl`s resolve against: the Hub revision for one and the Kaggle API for the other.
+
+```{r base}
+own_hf@base
+own_kaggle@base
+```
+
+`write_croissant()` writes the metadata without `base`, and writes the same JSON-LD for both.
+
+```{r identical-metadata}
+identical(write_croissant(own_hf), write_croissant(own_kaggle))
+```
+
+## Comparison
+
+The following table summarizes each document with the accessors `about()`, `files()`, `record_sets()`, `enumerations()`, and `fields()`.
+
+```{r summarize}
+summarize_croissant <- function(x) {
+  a <- about(x)
+  or_absent <- function(v) {
+    if (is.null(v)) "absent" else paste(v, collapse = ", ")
+  }
+  rs <- names(record_sets(x))
+  f <- data.table::rbindlist(lapply(rs, function(r) fields(x, r)))
+  n_described <- if (nrow(f) > 0L) sum(!is.na(f[["description"]])) else 0L
+  c(
+    `Croissant version` = x@version,
+    `Dataset version` = or_absent(a[["dataset_version"]]),
+    License = or_absent(a[["license"]]),
+    Creator = or_absent(a[["creator"]]),
+    `citeAs` = if (is.null(a[["cite_as"]])) "absent" else "present",
+    `datePublished` = or_absent(a[["date_published"]]),
+    Files = paste(
+      paste0(files(x)[["id"]], " (", files(x)[["encoding_format"]], ")"),
+      collapse = "; "
+    ),
+    `Record sets` = if (length(rs) > 0L) paste(rs, collapse = ", ") else "none",
+    Enumerations = as.character(length(enumerations(x))),
+    `Fields with a description` = paste0(n_described, " of ", nrow(f)),
+    `Data types` = if (nrow(f) > 0L) {
+      paste(sort(unique(f[["data_type"]])), collapse = ", ")
+    } else {
+      "none"
+    }
+  )
+}
+comparison <- data.frame(
+  `Hugging Face generated` = summarize_croissant(hf_generated),
+  `Kaggle generated` = summarize_croissant(kaggle_generated),
+  `croissant.json, either site` = summarize_croissant(own_hf),
+  check.names = FALSE
+)
+knitr::kable(comparison)
+```
+
+The Hub describes its Parquet conversion of the data, stored on the branch `refs/convert/parquet`: one file set and one record set per table, with an added `split` field whose values an enumeration lists. Its data types come from the Parquet schema, and its `name`, `description`, `license`, and `keywords` from the dataset card.
+
+Kaggle describes the version's zip archive and the files within it whose format it recognizes; its `name`, `alternateName`, `description`, `license`, and `keywords` come from the dataset's settings on Kaggle.
+
+The dataset's own metadata names each Parquet file with its SHA-256, gives each field a description and the data type of its R column, and lists the levels of each categorical field in an enumeration.
+
+## Validation
+
+`validate_croissant()` reports the issues of each document.
+
+```{r validate}
+validate_croissant(hf_generated)
+validate_croissant(kaggle_generated)
+validate_croissant(own_hf)
+```
+
+## Records
+
+`read_record_set()` reads a record set from the files its metadata names. The Hub-generated record set `classification` reads from the Hub's Parquet conversion:
+
+```{r records-hf-generated}
+generated <- read_record_set(
+  hf_generated,
+  "classification",
+  cache_dir = cache_hf
+)
+dim(generated)
+```
+
+The dataset's own record set `classification` reads from the uploaded Parquet file, from each site. Each download is verified: from the Hub against the SHA-256 the Hub lists for the file, and from Kaggle against the SHA-256 in the metadata.
+
+```{r records-own}
+from_hf <- read_record_set(own_hf, "classification", cache_dir = cache_hf)
+from_kaggle <- read_record_set(
+  own_kaggle,
+  "classification",
+  cache_dir = cache_kaggle
+)
+identical(from_hf, from_kaggle)
+dim(from_hf)
+```
+
+The Hub-generated records hold the `split` column in addition to the dataset's columns:
+
+```{r records-columns}
+setdiff(names(generated), names(from_hf))
+```
+
+The dataset's own metadata describes each column, as `fields()` returns:
+
+```{r fields}
+knitr::kable(fields(own_hf, "classification")[c(1L, 101L), c("column", "description")])
+```
+
+```{r cleanup, include = FALSE}
+unlink(c(cache_hf, cache_kaggle), recursive = TRUE)
+```

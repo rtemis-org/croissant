@@ -136,6 +136,7 @@ write_value <- function(value, term, version) {
   switch(
     term[["kind"]],
     string = ,
+    version = ,
     logical = ,
     json = value,
     strings = if (length(value) == 1L) value else as.list(value),

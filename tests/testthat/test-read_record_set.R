@@ -232,6 +232,24 @@ test_that("a downloaded file is verified against its sha256 and cached", {
   )
 })
 
+test_that("a checksum in hexadecimal or base64 verifies a download", {
+  src <- local_tempfile(fileext = ".csv")
+  writeLines(c("a", "1"), src)
+  url <- paste0("file://", normalizePath(src))
+  md5 <- unname(tools::md5sum(src))
+  md5_base64 <- openssl::base64_encode(openssl::md5(file(src, raw = TRUE)))
+  ctx <- new_load_context(Croissant(), NULL, local_tempdir(), 0L)
+  path <- download_cached(ctx, url, NULL, md5_base64)
+  expect_identical(basename(dirname(path)), md5)
+  expect_identical(download_cached(ctx, url, NULL, toupper(md5)), path)
+  expect_identical(checksum_hex(md5_base64, 16L), md5)
+  expect_identical(checksum_hex("not a checksum", 16L), "not a checksum")
+  expect_error(
+    download_cached(ctx, url, NULL, openssl::base64_encode(as.raw(1:16))),
+    class = "croissant_checksum_error"
+  )
+})
+
 test_that("a download and a cache hit are reported at verbosity 1", {
   src <- local_tempfile(fileext = ".csv")
   writeLines(c("a", "1"), src)

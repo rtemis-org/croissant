@@ -134,7 +134,9 @@ input_label <- function(x) {
 #' @param x Character: Path, URL, JSON string, or `hf://datasets/` path.
 #'
 #' @return Character scalar: The directory of a local path, of a URL, or of an
-#' `hf://datasets/` path of a file, with its revision; `NULL` for a JSON
+#' `hf://datasets/` path of a file, with its revision; for a Kaggle API
+#' download URL of a file, the dataset's download root and the file's encoded
+#' folder (see `kaggle_document_base()`); `NULL` for a JSON
 #' string and for an `hf://datasets/` path of a dataset, whose Hub-generated
 #' metadata names its files by absolute URL.
 #'
@@ -147,6 +149,8 @@ document_base <- function(x) {
   }
   if (is_hf(x)) {
     if (is.null(parse_hf(x)[["file"]])) NULL else sub("/[^/]*$", "", x)
+  } else if (!is.null(kaggle_download_parts(x))) {
+    kaggle_document_base(x)
   } else if (grepl("^https?://", x)) {
     sub("/[^/]*$", "", x)
   } else {
@@ -441,6 +445,15 @@ read_value <- function(value, term, log, node) {
       unlist(values, use.names = FALSE)
     },
     text = read_text(value),
+    version = {
+      if (is_string(value)) {
+        value
+      } else if (is.numeric(value) && length(value) == 1L && !is.na(value)) {
+        version_string(value)
+      } else {
+        type_error("a string or a number", value)
+      }
+    },
     logical = {
       if (!is.logical(value) || length(value) != 1L || is.na(value)) {
         type_error("true or false", value)
@@ -502,6 +515,33 @@ read_value <- function(value, term, log, node) {
     json = value
   )
 } # /croissant::read_value
+
+
+# %% version_string ----
+#' A dataset version given as a number, as a string
+#'
+#' Follows mlcroissant's `cast_version()`: a whole number `n` is `"n.0.0"`,
+#' as Kaggle writes the version number, and a fractional number `m.n` is
+#' `"m.n.0"`. JSON `1.0` reads as a double and casts to `"1.0.0"`, as
+#' Python's `float` does.
+#'
+#' @param x Numeric scalar: Version.
+#'
+#' @return Character scalar.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+version_string <- function(x) {
+  if (is.integer(x)) {
+    return(paste0(x, ".0.0"))
+  }
+  out <- format(x, digits = 15L, scientific = FALSE)
+  if (!grepl(".", out, fixed = TRUE)) {
+    out <- paste0(out, ".0")
+  }
+  paste0(out, ".0")
+} # /croissant::version_string
 
 
 # %% fits_term ----

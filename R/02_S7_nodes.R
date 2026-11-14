@@ -887,7 +887,7 @@ class_type <- function(cls) {
         name = .term("name", "text"),
         description = .term("description", "text"),
         conforms_to = .term("conformsTo", "strings"),
-        dataset_version = .term("version", "string"),
+        dataset_version = .term("version", "version"),
         sd_version = .term("sdVersion", "string"),
         license = .term("license", "license"),
         sd_license = .term("sdLicense", "license"),
