@@ -58,22 +58,6 @@ nullable_text <- prop_union(
   nullable = TRUE
 )
 
-# An array of `Field` objects. `Field` declares two such properties, which
-# refer to `Field` itself.
-field_list <- new_property(
-  class = NULL | class_list,
-  validator = function(value) {
-    if (is.null(value)) {
-      return(NULL)
-    }
-    ok <- vapply(value, \(v) is_node(v, "Field"), logical(1L))
-    if (!all(ok) || !is.null(names(value))) {
-      return("must be NULL or an unnamed list of Field objects")
-    }
-    NULL
-  }
-)
-
 # A map of nodes, property `name` of the class, keyed by `node_keys()`, so
 # that `x@record_set$titanic` selects a node. The setter runs in the
 # constructor and on every assignment.
@@ -424,9 +408,17 @@ Field <- new_class(
     data_type = nullable_strings,
     source = prop_instance(Source, nullable = TRUE),
     references = prop_instance(Source, nullable = TRUE),
-    sub_field = field_list,
+    sub_field = prop_array(
+      prop_instance("Field"),
+      min_items = 0L,
+      nullable = TRUE
+    ),
     parent_field = prop_instance(ParentField, nullable = TRUE),
-    annotation = field_list,
+    annotation = prop_array(
+      prop_instance("Field"),
+      min_items = 0L,
+      nullable = TRUE
+    ),
     repeated = prop_boolean(default = NULL, nullable = TRUE),
     is_array = prop_boolean(default = NULL, nullable = TRUE),
     array_shape = nullable_string,
@@ -923,22 +915,6 @@ class_type <- function(cls) {
 .alt_keys <- unique(unlist(lapply(.node_terms, function(spec) {
   lapply(spec[["terms"]], \(t) t[["alt"]])
 })))
-
-
-# %% is_node ----
-#' Test whether a value is a node of one of the named classes
-#'
-#' @param x Value.
-#' @param classes Character: Node class names.
-#'
-#' @return Logical scalar.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
-is_node <- function(x, classes) {
-  S7_inherits(x) && S7_class(x)@name %in% classes
-} # /croissant::is_node
 
 
 # %% node_class ----
