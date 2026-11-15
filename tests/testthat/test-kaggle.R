@@ -158,18 +158,18 @@ test_that("the Kaggle token resolves as the Kaggle tools resolve it", {
   expect_identical(resolve_kaggle_token("given"), "given")
 })
 
-test_that("the .kaggle directory is under USERPROFILE on Windows", {
+test_that("the .kaggle directory is under HOME, or USERPROFILE on Windows", {
   home <- local_tempdir()
-  dir.create(file.path(home, ".kaggle"))
-  writeLines("from-profile", file.path(home, ".kaggle", "access_token"))
-  local_envvar(
-    HOME = local_tempdir(),
-    USERPROFILE = home,
-    KAGGLE_API_TOKEN = NA
-  )
-  expect_identical(resolve_kaggle_token(), "")
-  local_mocked_bindings(is_windows = function() TRUE)
+  profile <- local_tempdir()
+  dir.create(file.path(profile, ".kaggle"))
+  writeLines("from-profile", file.path(profile, ".kaggle", "access_token"))
+  local_envvar(HOME = home, USERPROFILE = profile, KAGGLE_API_TOKEN = NA)
+  windows <- FALSE
+  local_mocked_bindings(is_windows = function() windows)
   expect_identical(kaggle_home(), home)
+  expect_identical(resolve_kaggle_token(), "")
+  windows <- TRUE
+  expect_identical(kaggle_home(), profile)
   expect_identical(resolve_kaggle_token(), "from-profile")
 })
 
