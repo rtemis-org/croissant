@@ -170,7 +170,8 @@ kaggle_croissant <- function(dataset) {
 #' Resolves the token from the sources the Kaggle command-line tool and
 #' 'kagglehub' read, in their order: `token`; the `KAGGLE_API_TOKEN`
 #' environment variable, holding the token or the path of a file that holds
-#' it; and the file `~/.kaggle/access_token`, or `~/.kaggle/access_token.txt`.
+#' it; and the file `.kaggle/access_token`, or `.kaggle/access_token.txt`, in
+#' the home directory (`kaggle_home()`).
 #'
 #' @param token Optional Character: Token.
 #'
@@ -193,14 +194,33 @@ resolve_kaggle_token <- function(token = NULL) {
   if (nzchar(env)) {
     return(if (file.exists(env)) from_file(env) else env)
   }
-  for (path in c("~/.kaggle/access_token", "~/.kaggle/access_token.txt")) {
-    out <- from_file(path.expand(path))
+  for (name in c("access_token", "access_token.txt")) {
+    out <- from_file(file.path(kaggle_home(), ".kaggle", name))
     if (nzchar(out)) {
       return(out)
     }
   }
   ""
 } # /croissant::resolve_kaggle_token
+
+
+# %% kaggle_home ----
+#' Home directory that holds the `.kaggle` directory
+#'
+#' The directory Python's `os.path.expanduser("~")` returns, as the Kaggle
+#' tools read it: `USERPROFILE` on Windows and `HOME` elsewhere. On Windows,
+#' `path.expand("~")` returns `R_USER`, often the Documents folder, which is
+#' not where the Kaggle tools keep `.kaggle`.
+#'
+#' @return Character: Directory path.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+kaggle_home <- function() {
+  home <- Sys.getenv(if (is_windows()) "USERPROFILE" else "HOME", "")
+  if (nzchar(home)) home else path.expand("~")
+} # /croissant::kaggle_home
 
 
 # %% is_kaggle_api ----
@@ -319,7 +339,8 @@ kaggle_stored_croissant <- function(dataset, url, token) {
 #' which a private dataset requires. The token is resolved as the Kaggle
 #' command-line tool and 'kagglehub' resolve it: `token`; the
 #' `KAGGLE_API_TOKEN` environment variable, holding the token or the path of a
-#' file that holds it; and the file `~/.kaggle/access_token`. A token is
+#' file that holds it; and the file `.kaggle/access_token` in the directory
+#' that `HOME` names, or `USERPROFILE` on Windows. A token is
 #' created at <https://www.kaggle.com/settings/api>.
 #'
 #' @param dataset Character: Dataset, as `<owner>/<slug>` or as its URL,
