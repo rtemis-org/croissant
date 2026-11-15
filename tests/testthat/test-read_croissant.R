@@ -345,7 +345,10 @@ test_that("text whose tags repeat or are missing reads as tagged strings", {
     description = list(list(`@value` = "Passengers.", `@language` = "en"))
   )
   json <- as.character(jsonlite::toJSON(doc, auto_unbox = TRUE))
-  x <- read_croissant(json, verbosity = 0L)
+  expect_warning(
+    x <- read_croissant(json, verbosity = 0L),
+    "no conformsTo IRI"
+  )
   expect_identical(
     x@name,
     list(

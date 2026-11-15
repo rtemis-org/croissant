@@ -19,19 +19,28 @@
 #' @param cache_dir Character: Cache directory.
 #' @param verbosity Integer: Verbosity level.
 #' @param token Character: Hugging Face token, or `""`.
+#' @param kaggle_token Character: Kaggle API token, or `""`.
 #'
 #' @return Environment.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-new_load_context <- function(x, base, cache_dir, verbosity, token = "") {
+new_load_context <- function(
+  x,
+  base,
+  cache_dir,
+  verbosity,
+  token = "",
+  kaggle_token = ""
+) {
   ctx <- new.env(parent = emptyenv())
   ctx[["x"]] <- x
   ctx[["base"]] <- base
   ctx[["cache_dir"]] <- cache_dir
   ctx[["verbosity"]] <- verbosity
   ctx[["token"]] <- token
+  ctx[["kaggle_token"]] <- kaggle_token
   ctx[["tables"]] <- new.env(parent = emptyenv())
   ctx[["dirs"]] <- new.env(parent = emptyenv())
   ctx[["hf"]] <- new.env(parent = emptyenv())
@@ -323,21 +332,18 @@ download_cached <- function(ctx, url, sha256, md5) {
   }
   dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
   info("Downloading ", url, verbosity = ctx[["verbosity"]])
-  status <- tryCatch(
-    utils::download.file(url, dest, mode = "wb", quiet = TRUE),
-    error = function(e) e
+  failed <- download_url(
+    url,
+    dest,
+    kaggle_headers(url, ctx[["kaggle_token"]] %||% "")
   )
-  if (inherits(status, "error") || !identical(status, 0L)) {
+  if (!is.null(failed)) {
     unlink(dest)
     abort(
       "Downloading ",
       url,
-      " failed",
-      if (inherits(status, "error")) {
-        paste0(": ", conditionMessage(status))
-      } else {
-        ""
-      },
+      " failed: ",
+      conditionMessage(failed),
       ".",
       class = c("croissant_download_error", "rtemis_input_error")
     )
@@ -356,6 +362,34 @@ download_cached <- function(ctx, url, sha256, md5) {
   }
   dest
 } # /croissant::download_cached
+
+
+# %% download_url ----
+#' Download a URL to a file
+#'
+#' @param url Character: URL.
+#' @param dest Character: Destination file.
+#' @param headers Optional Named character: Request headers.
+#'
+#' @return The condition when the download fails or warns, otherwise `NULL`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+download_url <- function(url, dest, headers = NULL) {
+  status <- tryCatch(
+    utils::download.file(
+      url,
+      dest,
+      mode = "wb",
+      quiet = TRUE,
+      headers = headers
+    ),
+    error = identity,
+    warning = identity
+  )
+  if (inherits(status, "condition")) status else NULL
+} # /croissant::download_url
 
 
 # %% checksum_ok ----
@@ -750,6 +784,10 @@ glob_to_regex <- function(glob) {
 # %% read_content ----
 #' Read a file by its encoding format
 #'
+#' A file none of whose encoding formats names a readable format, such as a
+#' CSV file Kaggle declares as `application/vnd.ms-excel`, is read by the
+#' format its file extension names (`format_from_extension()`).
+#'
 #' @param path Character: Local file path.
 #' @param formats Character: Encoding formats of the file.
 #' @param columns Optional Character: Columns to read from a Parquet file.
@@ -764,21 +802,14 @@ glob_to_regex <- function(glob) {
 #' @noRd
 read_content <- function(path, formats, columns = NULL) {
   formats <- tolower(formats %||% character())
+  if (!any(formats %in% .readable_formats)) {
+    formats <- c(formats, format_from_extension(path))
+  }
   if (
     any(formats %in% c("text/csv", "text/tab-separated-values", "text/plain"))
   ) {
     sep <- if ("text/tab-separated-values" %in% formats) "\t" else ","
-    return(list(
-      kind = "table",
-      data = data.table::fread(
-        path,
-        sep = sep,
-        colClasses = "character",
-        na.strings = .na_strings,
-        encoding = "UTF-8",
-        showProgress = FALSE
-      )
-    ))
+    return(list(kind = "table", data = read_delimited(path, sep)))
   }
   if ("application/json" %in% formats) {
     return(list(
@@ -844,6 +875,110 @@ read_content <- function(path, formats, columns = NULL) {
     )
   )
 } # /croissant::read_content
+
+
+# %% read_delimited ----
+#' Read a CSV or TSV file as character columns
+#'
+#' A column whose header is empty is named `.empty_header`, so a field that
+#' extracts the column `""` reads it; `data.table::fread()` names it
+#' `V<position>`. A file that `fread()` stops reading early, at a row whose
+#' number of fields differs from the header's, raises
+#' `croissant_format_error`, so that no records are dropped without notice.
+#'
+#' @param path Character: Local file path.
+#' @param sep Character: Field separator.
+#'
+#' @return data.table.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+read_delimited <- function(path, sep) {
+  # The warning is recorded and the error raised after fread() returns:
+  # leaving fread() from its warning handler skips its cleanup.
+  stopped <- NULL
+  data <- withCallingHandlers(
+    data.table::fread(
+      path,
+      sep = sep,
+      colClasses = "character",
+      na.strings = .na_strings,
+      encoding = "UTF-8",
+      showProgress = FALSE
+    ),
+    warning = function(w) {
+      if (grepl("Stopped early", conditionMessage(w), fixed = TRUE)) {
+        stopped <<- conditionMessage(w)
+        invokeRestart("muffleWarning")
+      }
+    }
+  )
+  if (!is.null(stopped)) {
+    abort(
+      "data.table::fread() read ",
+      path,
+      " only in part: ",
+      stopped,
+      " A row has a number of fields that differs from the header's, ",
+      "as a field with an unescaped quote or separator produces.",
+      class = c(
+        "croissant_format_error",
+        "rtemis_value_error",
+        "rtemis_input_error"
+      )
+    )
+  }
+  # fread() names the column of an empty header `V<position>`; the header
+  # line, split as CSV, tells such a column from one whose header is
+  # `V<position>`. A file whose names are all of that form has no header.
+  default <- names(data) == paste0("V", seq_along(data))
+  if (any(default) && !all(default)) {
+    line <- readLines(path, n = 1L, warn = FALSE, encoding = "UTF-8")
+    header <- scan(
+      text = sub("^\ufeff", "", line),
+      what = "character",
+      sep = sep,
+      quote = "\"",
+      na.strings = character(),
+      quiet = TRUE
+    )
+    header <- c(header, rep("", max(0L, length(data) - length(header))))
+    empty <- which(default & !nzchar(trimws(header[seq_along(data)])))
+    if (length(empty) > 0L && !.empty_header %in% names(data)) {
+      data.table::setnames(data, empty[[1L]], .empty_header)
+    }
+  }
+  data
+} # /croissant::read_delimited
+
+
+# %% format_from_extension ----
+#' Encoding format named by a file extension
+#'
+#' @param path Character: File path.
+#'
+#' @return Character: The encoding format of a `.csv`, `.tsv`, `.tab`,
+#' `.json`, `.jsonl`, `.ndjson`, or `.parquet` file, or `character()`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+format_from_extension <- function(path) {
+  ext <- tolower(tools::file_ext(path))
+  out <- switch(
+    ext,
+    csv = "text/csv",
+    tsv = ,
+    tab = "text/tab-separated-values",
+    json = "application/json",
+    jsonl = ,
+    ndjson = "application/jsonlines",
+    parquet = "application/x-parquet",
+    NULL
+  )
+  out %||% character()
+} # /croissant::format_from_extension
 
 
 # %% read_parquet_columns ----
@@ -942,6 +1077,24 @@ read_parquet_nanoparquet <- function(path, columns = NULL) {
 
 # Strings that pandas reads as missing, so that CSV values compare with
 # mlcroissant's.
+.readable_formats <- c(
+  "text/csv",
+  "text/tab-separated-values",
+  "text/plain",
+  "application/json",
+  "application/jsonlines",
+  "application/x-jsonlines",
+  "application/jsonl",
+  "application/x-ndjson",
+  "application/x-parquet",
+  "application/vnd.apache.parquet",
+  "application/parquet"
+)
+
+# Name of the column of a CSV or TSV file whose header is empty, until the
+# record set's columns are prefixed with the origin key.
+.empty_header <- "@emptyheader"
+
 .na_strings <- c(
   "",
   "#N/A",

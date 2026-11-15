@@ -16,8 +16,9 @@ Description: Reads, writes, and validates Croissant metadata, the MLCommons
     Record sets are read as tables from CSV, TSV, JSON, JSON Lines, and Parquet
     files, local or remote, including files in zip and tar archives, with
     checksum verification. Metadata can be generated from a data frame. For
-    datasets on the 'Hugging Face Hub', the metadata the Hub generates is read,
-    and record sets are read as tables from the dataset's files.
+    datasets on the 'Hugging Face Hub' and 'Kaggle', the metadata each site
+    generates and a Croissant file stored in the dataset are read, and record
+    sets are read as tables from the dataset's files.
 License: BSD_3_clause + file LICENSE
 Copyright: See file inst/COPYRIGHTS
 URL: https://www.rtemis.org, https://github.com/rtemis-org/croissant,

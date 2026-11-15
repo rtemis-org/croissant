@@ -129,8 +129,7 @@ test_that("a Croissant file stored in a Kaggle dataset reads with its records", 
     "https://www.kaggle.com/api/v1/datasets/download/rtemisorg/rtemis-demo"
   )
   expect_setequal(names(record_sets(x)), c("classification", "regression"))
-  cache_dir <- tempfile()
-  on.exit(unlink(cache_dir, recursive = TRUE), add = TRUE)
+  cache_dir <- local_tempdir()
   dat <- read_record_set(
     x,
     "classification",
@@ -139,4 +138,124 @@ test_that("a Croissant file stored in a Kaggle dataset reads with its records", 
   )
   expect_gt(nrow(dat), 0L)
   expect_true(is.factor(dat[["class"]]))
+})
+
+test_that("the Kaggle token resolves as the Kaggle tools resolve it", {
+  home <- local_tempdir()
+  dir.create(file.path(home, ".kaggle"))
+  local_envvar(HOME = home, KAGGLE_API_TOKEN = NA)
+  expect_identical(resolve_kaggle_token(), "")
+  writeLines("from-file\n", file.path(home, ".kaggle", "access_token.txt"))
+  expect_identical(resolve_kaggle_token(), "from-file")
+  writeLines("from-access-token", file.path(home, ".kaggle", "access_token"))
+  expect_identical(resolve_kaggle_token(), "from-access-token")
+  local_envvar(KAGGLE_API_TOKEN = "from-env")
+  expect_identical(resolve_kaggle_token(), "from-env")
+  token_file <- file.path(home, "token")
+  writeLines("from-env-file", token_file)
+  local_envvar(KAGGLE_API_TOKEN = token_file)
+  expect_identical(resolve_kaggle_token(), "from-env-file")
+  expect_identical(resolve_kaggle_token("given"), "given")
+})
+
+test_that("the Kaggle token is sent to the Kaggle API only", {
+  api <- "https://www.kaggle.com/api/v1/datasets/download/a/b/x.csv"
+  expect_identical(
+    kaggle_headers(api, "t"),
+    c(Authorization = "Bearer t")
+  )
+  expect_null(kaggle_headers(api, ""))
+  expect_null(kaggle_headers("https://www.kaggle.com/datasets/a/b", "t"))
+  expect_null(kaggle_headers("https://huggingface.co/x.csv", "t"))
+  sent <- list()
+  local_mocked_bindings(
+    download_url = function(url, dest, headers = NULL) {
+      sent[[url]] <<- headers
+      writeLines("a\n1", dest)
+      NULL
+    }
+  )
+  ctx <- new_load_context(
+    Croissant(name = "x"),
+    NULL,
+    local_tempdir(),
+    0L,
+    kaggle_token = "t"
+  )
+  download_cached(ctx, api, NULL, NULL)
+  download_cached(ctx, "https://example.org/x.csv", NULL, NULL)
+  expect_identical(sent[[api]], c(Authorization = "Bearer t"))
+  expect_null(sent[["https://example.org/x.csv"]])
+})
+
+test_that("a stored Croissant file reads with the token and its base", {
+  doc <- write_croissant(Croissant(name = "Stored"))
+  requested <- NULL
+  local_mocked_bindings(
+    kaggle_get = function(url, dest, token = "") {
+      requested <<- list(url = url, token = token)
+      writeLines(doc, dest)
+      NULL
+    }
+  )
+  x <- read_croissant_kaggle(
+    "a/b",
+    file = "meta/croissant.json",
+    token = "t",
+    verbosity = 0L
+  )
+  expect_identical(
+    requested,
+    list(
+      url = "https://www.kaggle.com/api/v1/datasets/download/a/b/meta%2Fcroissant.json",
+      token = "t"
+    )
+  )
+  expect_identical(
+    x@base,
+    "https://www.kaggle.com/api/v1/datasets/download/a/b/meta"
+  )
+  local_mocked_bindings(
+    kaggle_get = function(url, dest, token = "") {
+      writeLines("<!DOCTYPE html><html></html>", dest)
+      NULL
+    }
+  )
+  local_envvar(HOME = local_tempdir(), KAGGLE_API_TOKEN = NA)
+  expect_error(
+    read_croissant_kaggle("a/b", file = "croissant.json", verbosity = 0L),
+    "A private dataset requires a Kaggle API token",
+    class = "croissant_download_error"
+  )
+  expect_error(
+    read_croissant_kaggle(
+      "a/b",
+      file = "croissant.json",
+      token = "t",
+      verbosity = 0L
+    ),
+    "the token may not grant access",
+    class = "croissant_download_error"
+  )
+})
+
+test_that("a private Kaggle dataset reads with the token", {
+  skip_on_cran()
+  skip_if_offline("www.kaggle.com")
+  skip_if_not(
+    nzchar(resolve_kaggle_token()),
+    "no Kaggle API token with access to rtemisorg/croissant-private-test"
+  )
+  x <- read_croissant_kaggle(
+    "rtemisorg/croissant-private-test",
+    file = "croissant.json",
+    verbosity = 0L
+  )
+  dat <- read_record_set(
+    x,
+    "default",
+    cache_dir = local_tempdir(),
+    verbosity = 0L
+  )
+  expect_identical(dat[["species"]], c("Adelie", "Gentoo", "Chinstrap"))
 })

@@ -5,7 +5,12 @@
 - A text property, such as `name` or `description`, holds a string, a character vector of strings without language tags, a character vector named by distinct language tags, or a list of tagged strings for text whose tags repeat or are missing from some strings (see `?croissant`); `read_croissant()` reads and `write_croissant()` writes each form.
 - `record_set` and `distribution` key each node by its `@id`, else its first name, else its position, made distinct by `make.unique()`.
 - `read_croissant_kaggle()` reads the Croissant metadata Kaggle generates for a public dataset, named as `<owner>/<slug>` or by its URL, or, with `file`, a Croissant file stored in the dataset, whose relative `contentUrl`s resolve to the dataset's files on the Kaggle API.
+- `read_croissant_kaggle()` and `read_record_set()` send a Kaggle API token to the Kaggle API, given as `token` and `kaggle_token` or read from `KAGGLE_API_TOKEN` or `~/.kaggle/access_token`, as the Kaggle command-line tool reads it.
 - `read_croissant()` reads a numeric dataset `version` as 'mlcroissant' does: `1` as `"1.0.0"` and `1.5` as `"1.5.0"`.
+- `read_record_set()` reads a file whose encoding format names no readable format, such as a CSV file declared as `application/vnd.ms-excel`, by its file extension.
+- `read_record_set()` reads the column `""` as the CSV column whose header is empty.
+- `read_record_set()` raises `croissant_format_error` for a CSV file that `data.table::fread()` reads only in part.
+- `read_record_set()` keeps a date or date-time column whose values are not ISO 8601 as character, with a warning.
 - `read_record_set()` verifies a download against an `md5` or `sha256` written in hexadecimal or in base64.
 - `croissant_from_data()` and `read_record_set()` read and write Parquet with 'arrow' when it is installed and with 'nanoparquet' otherwise, so Parquet record sets read and write without 'arrow', including under webR. 'nanoparquet' writes date-times in UTC and reads an ordered factor as an unordered one.
 

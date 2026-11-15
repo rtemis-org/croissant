@@ -32,9 +32,7 @@ pak::pak("rtemis-org/croissant")
 
 ## Hugging Face datasets
 
-A dataset on the Hugging Face Hub can have two Croissant documents: the
-metadata the Hub generates from its Parquet conversion, and a Croissant file
-the dataset's authors store in the repository.
+A dataset on the Hugging Face Hub can have two Croissant documents: the metadata the Hub generates from its Parquet conversion, and a Croissant file the dataset's authors store in the repository.
 
 ```r
 library(croissant)
@@ -45,8 +43,22 @@ y <- read_croissant("hf://datasets/rtemis/demo@v1.0.0/croissant.json")
 dat <- read_record_set(y, "classification")
 ```
 
-[Hugging Face datasets](https://docs.rtemis.org/r/croissant/huggingface.html)
-compares the two.
+[Hugging Face datasets](https://docs.rtemis.org/r/croissant/huggingface.html) compares the two.
+
+## Kaggle datasets
+
+Kaggle generates Croissant metadata for each public dataset. A dataset can also store a Croissant file of its own, which is how a Parquet dataset on Kaggle is described, since Kaggle generates no record set for Parquet files. A Kaggle API token, read from `KAGGLE_API_TOKEN` or `~/.kaggle/access_token` as the Kaggle tools read it, gives access to private datasets.
+
+```r
+# Metadata Kaggle generates
+x <- read_croissant_kaggle("yasserh/titanic-dataset")
+dat <- read_record_set(x, "Titanic-Dataset.csv")
+# The dataset's own metadata file
+y <- read_croissant_kaggle("rtemisorg/rtemis-demo", file = "croissant.json")
+dat <- read_record_set(y, "classification")
+```
+
+[Kaggle datasets](https://docs.rtemis.org/r/croissant/kaggle.html) describes both.
 
 ## Development
 

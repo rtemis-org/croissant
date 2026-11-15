@@ -38,7 +38,14 @@
 #' listing, as [hf_download()] does. Zip and tar archives are extracted
 #' into `cache_dir`. Relative `contentUrl`s and `FileSet` globs resolve
 #' against `base`. Columns are read from CSV, TSV, JSON, JSON Lines, and
-#' Parquet files. Parquet is read with 'arrow' when it is installed and with
+#' Parquet files. A file none of whose encoding formats names one of these,
+#' such as a CSV file declared as `application/vnd.ms-excel`, is read by the
+#' format its extension names: `.csv`, `.tsv`, `.tab`, `.json`, `.jsonl`,
+#' `.ndjson`, or `.parquet`. A CSV or TSV file that `data.table::fread()`
+#' reads only in part, stopping at a row whose number of fields differs from
+#' the header's, raises an error of class `croissant_format_error`. The
+#' column `""` names the column whose header is empty. Parquet is read with
+#' 'arrow' when it is installed and with
 #' 'nanoparquet' otherwise; 'nanoparquet' reads an ordered factor as an
 #' unordered one, a date-time in UTC, and no nested columns. A field extracting
 #' the `content` of an image, audio, or video file holds the file's local
@@ -48,7 +55,8 @@
 #' `sc:Integer` to integer, `cr:Int64` to integer64 (requires the 'bit64'
 #' package), `sc:Float` and `sc:Number` to double, `sc:Boolean` to logical,
 #' `sc:Date` to Date, `sc:DateTime` to POSIXct, and `sc:Text` and `sc:URL` to
-#' character. A date-time the file stores as one, as Parquet does, keeps its
+#' character. A date or date-time column holding text outside the ISO 8601
+#' forms, such as `September 25, 2021`, stays character, with a warning. A date-time the file stores as one, as Parquet does, keeps its
 #' time zone; a date-time read from text is in UTC. A factor keeps its
 #' `ordered` flag. A repeated field, or one split by a `separator` transform,
 #' is a list column. Each column [croissant_from_data()] writes reads back
@@ -72,6 +80,10 @@
 #' so later files are not downloaded.
 #' @param token Optional Character: Hugging Face token, for files of gated or
 #' private Hub datasets. `NULL` reads `HF_TOKEN`.
+#' @param kaggle_token Optional Character: Kaggle API token, for files of
+#' private Kaggle datasets, sent to the Kaggle API only. `NULL` reads
+#' `KAGGLE_API_TOKEN`, then `~/.kaggle/access_token`, as
+#' [read_croissant_kaggle()] does.
 #' @param verbosity Integer: Verbosity level; `1L` reports the record set
 #' before reading, each file downloaded or read from the cache, each archive
 #' extracted or whose cached extraction is reused, and the number of rows and
@@ -120,6 +132,7 @@ read_record_set <- function(
   ),
   n_max = Inf,
   token = NULL,
+  kaggle_token = NULL,
   verbosity = 1L
 ) {
   output <- match.arg(output)
@@ -131,6 +144,7 @@ read_record_set <- function(
     )
   }
   check_nullable_character_scalar(base)
+  check_nullable_character_scalar(kaggle_token)
   check_character_scalar(cache_dir)
   if (output == "tibble") {
     check_dependencies("tibble")
@@ -143,7 +157,14 @@ read_record_set <- function(
     x <- read_croissant(x, verbosity = 0L)
   }
   base <- base %||% x@base
-  ctx <- new_load_context(x, base, cache_dir, verbosity, hf_token(token))
+  ctx <- new_load_context(
+    x,
+    base,
+    cache_dir,
+    verbosity,
+    hf_token(token),
+    resolve_kaggle_token(kaggle_token)
+  )
   rs <- find_record_set(x, record_set)
   start <- Sys.time()
   msg0(
@@ -735,7 +756,10 @@ origin_table <- function(ctx, o, n_max = Inf) {
   if ("@filepath" %in% names(tab)) {
     tab[["@content"]] <- tab[["@filepath"]]
   }
-  data.table::setnames(tab, paste0(prefix, names(tab)))
+  # The column of an empty header is the column `""` a field extracts.
+  nm <- names(tab)
+  nm[nm == .empty_header] <- ""
+  data.table::setnames(tab, paste0(prefix, nm))
   tab
 } # /croissant::origin_table
 

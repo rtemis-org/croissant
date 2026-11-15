@@ -113,8 +113,52 @@ cast_values <- function(values, f, repeated = FALSE) {
     ) |>
       restore_json_type(values)
   }
+  if (
+    type %in% c("Date", "POSIXct") && !inherits(values, c("Date", "POSIXct"))
+  ) {
+    return(cast_dates(values, type, f))
+  }
   cast_atomic(values, type)
 } # /croissant::cast_values
+
+
+# %% cast_dates ----
+#' Cast text to dates or date-times, keeping text that does not parse
+#'
+#' A value outside the ISO 8601 forms `cast_atomic()` reads, such as
+#' `September 25, 2021`, keeps the field's values as character, with a
+#' warning naming the field and up to five such values.
+#'
+#' @param values Atomic vector: One value per record.
+#' @param type Character \{"Date", "POSIXct"\}: R type.
+#' @param f `Field` object.
+#'
+#' @return Date or POSIXct vector, or character when a value does not parse.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+cast_dates <- function(values, type, f) {
+  s <- as.character(values)
+  out <- tryCatch(cast_atomic(s, type), error = function(e) NULL)
+  bad <- if (is.null(out)) !is.na(s) else is.na(out) & !is.na(s)
+  if (!any(bad)) {
+    return(out)
+  }
+  examples <- unique(s[bad])
+  warn(
+    "Field ",
+    f@id,
+    " stays character: ",
+    paste(utils::head(examples, 5L), collapse = ", "),
+    if (length(examples) > 5L) ", ..." else "",
+    " not ISO 8601 ",
+    if (type == "Date") "dates" else "date-times",
+    ".",
+    use_warning = TRUE
+  )
+  s
+} # /croissant::cast_dates
 
 
 # %% restore_json_type ----
