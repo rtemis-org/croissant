@@ -129,8 +129,7 @@ test_that("a Croissant file stored in a Kaggle dataset reads with its records", 
     "https://www.kaggle.com/api/v1/datasets/download/rtemisorg/rtemis-demo"
   )
   expect_setequal(names(record_sets(x)), c("classification", "regression"))
-  cache_dir <- tempfile()
-  on.exit(unlink(cache_dir, recursive = TRUE), add = TRUE)
+  cache_dir <- local_tempdir()
   dat <- read_record_set(
     x,
     "classification",
@@ -142,32 +141,19 @@ test_that("a Croissant file stored in a Kaggle dataset reads with its records", 
 })
 
 test_that("the Kaggle token resolves as the Kaggle tools resolve it", {
-  old <- Sys.getenv(c("KAGGLE_API_TOKEN", "HOME"), unset = NA)
-  on.exit(
-    for (nm in names(old)) {
-      if (is.na(old[[nm]])) {
-        Sys.unsetenv(nm)
-      } else {
-        do.call(Sys.setenv, as.list(old[nm]))
-      }
-    },
-    add = TRUE
-  )
-  home <- tempfile("home_")
-  dir.create(file.path(home, ".kaggle"), recursive = TRUE)
-  on.exit(unlink(home, recursive = TRUE), add = TRUE)
-  Sys.setenv(HOME = home)
-  Sys.unsetenv("KAGGLE_API_TOKEN")
+  home <- local_tempdir()
+  dir.create(file.path(home, ".kaggle"))
+  local_envvar(HOME = home, KAGGLE_API_TOKEN = NA)
   expect_identical(resolve_kaggle_token(), "")
   writeLines("from-file\n", file.path(home, ".kaggle", "access_token.txt"))
   expect_identical(resolve_kaggle_token(), "from-file")
   writeLines("from-access-token", file.path(home, ".kaggle", "access_token"))
   expect_identical(resolve_kaggle_token(), "from-access-token")
-  Sys.setenv(KAGGLE_API_TOKEN = "from-env")
+  local_envvar(KAGGLE_API_TOKEN = "from-env")
   expect_identical(resolve_kaggle_token(), "from-env")
   token_file <- file.path(home, "token")
   writeLines("from-env-file", token_file)
-  Sys.setenv(KAGGLE_API_TOKEN = token_file)
+  local_envvar(KAGGLE_API_TOKEN = token_file)
   expect_identical(resolve_kaggle_token(), "from-env-file")
   expect_identical(resolve_kaggle_token("given"), "given")
 })
@@ -192,7 +178,7 @@ test_that("the Kaggle token is sent to the Kaggle API only", {
   ctx <- new_load_context(
     Croissant(name = "x"),
     NULL,
-    tempfile(),
+    local_tempdir(),
     0L,
     kaggle_token = "t"
   )
@@ -235,19 +221,7 @@ test_that("a stored Croissant file reads with the token and its base", {
       NULL
     }
   )
-  old <- Sys.getenv(c("KAGGLE_API_TOKEN", "HOME"), unset = NA)
-  on.exit(
-    for (nm in names(old)) {
-      if (is.na(old[[nm]])) {
-        Sys.unsetenv(nm)
-      } else {
-        do.call(Sys.setenv, as.list(old[nm]))
-      }
-    },
-    add = TRUE
-  )
-  Sys.unsetenv("KAGGLE_API_TOKEN")
-  Sys.setenv(HOME = tempfile("home_"))
+  local_envvar(HOME = local_tempdir(), KAGGLE_API_TOKEN = NA)
   expect_error(
     read_croissant_kaggle("a/b", file = "croissant.json", verbosity = 0L),
     "A private dataset requires a Kaggle API token",
@@ -277,8 +251,11 @@ test_that("a private Kaggle dataset reads with the token", {
     file = "croissant.json",
     verbosity = 0L
   )
-  cache_dir <- tempfile()
-  on.exit(unlink(cache_dir, recursive = TRUE), add = TRUE)
-  dat <- read_record_set(x, "default", cache_dir = cache_dir, verbosity = 0L)
+  dat <- read_record_set(
+    x,
+    "default",
+    cache_dir = local_tempdir(),
+    verbosity = 0L
+  )
   expect_identical(dat[["species"]], c("Adelie", "Gentoo", "Chinstrap"))
 })

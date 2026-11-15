@@ -38,7 +38,14 @@
 #' listing, as [hf_download()] does. Zip and tar archives are extracted
 #' into `cache_dir`. Relative `contentUrl`s and `FileSet` globs resolve
 #' against `base`. Columns are read from CSV, TSV, JSON, JSON Lines, and
-#' Parquet files. Parquet is read with 'arrow' when it is installed and with
+#' Parquet files. A file none of whose encoding formats names one of these,
+#' such as a CSV file declared as `application/vnd.ms-excel`, is read by the
+#' format its extension names: `.csv`, `.tsv`, `.tab`, `.json`, `.jsonl`,
+#' `.ndjson`, or `.parquet`. A CSV or TSV file that `data.table::fread()`
+#' reads only in part, stopping at a row whose number of fields differs from
+#' the header's, raises an error of class `croissant_format_error`. The
+#' column `""` names the column whose header is empty. Parquet is read with
+#' 'arrow' when it is installed and with
 #' 'nanoparquet' otherwise; 'nanoparquet' reads an ordered factor as an
 #' unordered one, a date-time in UTC, and no nested columns. A field extracting
 #' the `content` of an image, audio, or video file holds the file's local
@@ -48,7 +55,8 @@
 #' `sc:Integer` to integer, `cr:Int64` to integer64 (requires the 'bit64'
 #' package), `sc:Float` and `sc:Number` to double, `sc:Boolean` to logical,
 #' `sc:Date` to Date, `sc:DateTime` to POSIXct, and `sc:Text` and `sc:URL` to
-#' character. A date-time the file stores as one, as Parquet does, keeps its
+#' character. A date or date-time column holding text outside the ISO 8601
+#' forms, such as `September 25, 2021`, stays character, with a warning. A date-time the file stores as one, as Parquet does, keeps its
 #' time zone; a date-time read from text is in UTC. A factor keeps its
 #' `ordered` flag. A repeated field, or one split by a `separator` transform,
 #' is a list column. Each column [croissant_from_data()] writes reads back
@@ -748,7 +756,10 @@ origin_table <- function(ctx, o, n_max = Inf) {
   if ("@filepath" %in% names(tab)) {
     tab[["@content"]] <- tab[["@filepath"]]
   }
-  data.table::setnames(tab, paste0(prefix, names(tab)))
+  # The column of an empty header is the column `""` a field extracts.
+  nm <- names(tab)
+  nm[nm == .empty_header] <- ""
+  data.table::setnames(tab, paste0(prefix, nm))
   tab
 } # /croissant::origin_table
 

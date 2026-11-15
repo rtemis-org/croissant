@@ -79,7 +79,14 @@ downloaded from the resolved commit and verified against the Hub's
 listing, as \code{\link[=hf_download]{hf_download()}} does. Zip and tar archives are extracted
 into \code{cache_dir}. Relative \code{contentUrl}s and \code{FileSet} globs resolve
 against \code{base}. Columns are read from CSV, TSV, JSON, JSON Lines, and
-Parquet files. Parquet is read with 'arrow' when it is installed and with
+Parquet files. A file none of whose encoding formats names one of these,
+such as a CSV file declared as \code{application/vnd.ms-excel}, is read by the
+format its extension names: \code{.csv}, \code{.tsv}, \code{.tab}, \code{.json}, \code{.jsonl},
+\code{.ndjson}, or \code{.parquet}. A CSV or TSV file that \code{data.table::fread()}
+reads only in part, stopping at a row whose number of fields differs from
+the header's, raises an error of class \code{croissant_format_error}. The
+column \code{""} names the column whose header is empty. Parquet is read with
+'arrow' when it is installed and with
 'nanoparquet' otherwise; 'nanoparquet' reads an ordered factor as an
 unordered one, a date-time in UTC, and no nested columns. A field extracting
 the \code{content} of an image, audio, or video file holds the file's local
@@ -89,7 +96,8 @@ Values are cast by the field's first data type with an R counterpart:
 \code{sc:Integer} to integer, \code{cr:Int64} to integer64 (requires the 'bit64'
 package), \code{sc:Float} and \code{sc:Number} to double, \code{sc:Boolean} to logical,
 \code{sc:Date} to Date, \code{sc:DateTime} to POSIXct, and \code{sc:Text} and \code{sc:URL} to
-character. A date-time the file stores as one, as Parquet does, keeps its
+character. A date or date-time column holding text outside the ISO 8601
+forms, such as \verb{September 25, 2021}, stays character, with a warning. A date-time the file stores as one, as Parquet does, keeps its
 time zone; a date-time read from text is in UTC. A factor keeps its
 \code{ordered} flag. A repeated field, or one split by a \code{separator} transform,
 is a list column. Each column \code{\link[=croissant_from_data]{croissant_from_data()}} writes reads back

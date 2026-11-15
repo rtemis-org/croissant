@@ -451,3 +451,94 @@ test_that("an absolute local path is recognized on each platform", {
     c(1L, 2L)
   )
 })
+
+# A Croissant object for one CSV file in `dir`, with one field per column.
+csv_croissant <- function(lines, columns, types, encoding_format = "text/csv") {
+  dir <- local_tempdir(parent.frame())
+  writeLines(lines, file.path(dir, "data.csv"))
+  x <- Croissant(
+    name = "csv",
+    distribution = list(FileObject(
+      id = "data",
+      content_url = "data.csv",
+      encoding_format = encoding_format
+    )),
+    record_set = list(RecordSet(
+      id = "r",
+      field = unname(Map(
+        function(column, type, i) {
+          Field(
+            id = paste0("r/f", i),
+            data_type = type,
+            source = Source(
+              file_object = "data",
+              extract = Extract(column = column)
+            )
+          )
+        },
+        columns,
+        types,
+        seq_along(columns)
+      ))
+    ))
+  )
+  list(x = x, dir = dir)
+}
+
+test_that("a file without a readable encoding format reads by its extension", {
+  d <- csv_croissant(
+    c("a,b", "1,x", "2,y"),
+    c("a", "b"),
+    c("sc:Integer", "sc:Text"),
+    encoding_format = "application/vnd.ms-excel"
+  )
+  tab <- read_record_set(d$x, "r", base = d$dir, verbosity = 0L)
+  expect_identical(tab[["f1"]], 1:2)
+  expect_identical(
+    format_from_extension("x/y.TSV"),
+    "text/tab-separated-values"
+  )
+  expect_identical(format_from_extension("x/y.xlsx"), character())
+})
+
+test_that("a field extracts the CSV column whose header is empty", {
+  d <- csv_croissant(
+    c(",V2,points", "0,a,87", "1,b,90"),
+    c("", "V2", "points"),
+    c("sc:Integer", "sc:Text", "sc:Integer")
+  )
+  tab <- read_record_set(d$x, "r", base = d$dir, verbosity = 0L)
+  expect_identical(tab[["f1"]], 0:1)
+  expect_identical(tab[["f2"]], c("a", "b"))
+  expect_identical(tab[["f3"]], c(87L, 90L))
+})
+
+test_that("a CSV file read only in part is an error", {
+  lines <- c("a,b", "1,x", "2,y,z", paste0(3:20, ",w"))
+  d <- csv_croissant(lines, c("a", "b"), c("sc:Integer", "sc:Text"))
+  expect_error(
+    read_record_set(d$x, "r", base = d$dir, verbosity = 0L),
+    "only in part",
+    class = "croissant_format_error"
+  )
+})
+
+test_that("dates outside ISO 8601 stay character, with a warning", {
+  d <- csv_croissant(
+    c("id,d", "1,\"September 25, 2021\"", "2,\"October 1, 2021\""),
+    c("id", "d"),
+    c("sc:Integer", "sc:Date")
+  )
+  expect_warning(
+    tab <- read_record_set(d$x, "r", base = d$dir, verbosity = 0L),
+    "stays character: September 25, 2021, October 1, 2021 not ISO 8601 dates"
+  )
+  expect_identical(tab[["f2"]], c("September 25, 2021", "October 1, 2021"))
+  d <- csv_croissant(
+    c("id,d", "1,2021-09-25", "2,2021-10-01"),
+    c("id", "d"),
+    c("sc:Integer", "sc:Date")
+  )
+  tab <- read_record_set(d$x, "r", base = d$dir, verbosity = 0L)
+  expect_s3_class(tab[["f2"]], "Date")
+})
