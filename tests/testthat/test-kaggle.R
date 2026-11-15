@@ -143,7 +143,7 @@ test_that("a Croissant file stored in a Kaggle dataset reads with its records", 
 test_that("the Kaggle token resolves as the Kaggle tools resolve it", {
   home <- local_tempdir()
   dir.create(file.path(home, ".kaggle"))
-  local_envvar(HOME = home, KAGGLE_API_TOKEN = NA)
+  local_envvar(HOME = home, USERPROFILE = home, KAGGLE_API_TOKEN = NA)
   expect_identical(resolve_kaggle_token(), "")
   writeLines("from-file\n", file.path(home, ".kaggle", "access_token.txt"))
   expect_identical(resolve_kaggle_token(), "from-file")
@@ -156,6 +156,21 @@ test_that("the Kaggle token resolves as the Kaggle tools resolve it", {
   local_envvar(KAGGLE_API_TOKEN = token_file)
   expect_identical(resolve_kaggle_token(), "from-env-file")
   expect_identical(resolve_kaggle_token("given"), "given")
+})
+
+test_that("the .kaggle directory is under USERPROFILE on Windows", {
+  home <- local_tempdir()
+  dir.create(file.path(home, ".kaggle"))
+  writeLines("from-profile", file.path(home, ".kaggle", "access_token"))
+  local_envvar(
+    HOME = local_tempdir(),
+    USERPROFILE = home,
+    KAGGLE_API_TOKEN = NA
+  )
+  expect_identical(resolve_kaggle_token(), "")
+  local_mocked_bindings(is_windows = function() TRUE)
+  expect_identical(kaggle_home(), home)
+  expect_identical(resolve_kaggle_token(), "from-profile")
 })
 
 test_that("the Kaggle token is sent to the Kaggle API only", {
@@ -221,7 +236,8 @@ test_that("a stored Croissant file reads with the token and its base", {
       NULL
     }
   )
-  local_envvar(HOME = local_tempdir(), KAGGLE_API_TOKEN = NA)
+  home <- local_tempdir()
+  local_envvar(HOME = home, USERPROFILE = home, KAGGLE_API_TOKEN = NA)
   expect_error(
     read_croissant_kaggle("a/b", file = "croissant.json", verbosity = 0L),
     "A private dataset requires a Kaggle API token",

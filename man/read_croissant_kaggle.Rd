@@ -43,7 +43,8 @@ Requests to the Kaggle API carry the Kaggle API token when there is one,
 which a private dataset requires. The token is resolved as the Kaggle
 command-line tool and 'kagglehub' resolve it: \code{token}; the
 \code{KAGGLE_API_TOKEN} environment variable, holding the token or the path of a
-file that holds it; and the file \verb{~/.kaggle/access_token}. A token is
+file that holds it; and the file \code{.kaggle/access_token} in the directory
+that \code{HOME} names, or \code{USERPROFILE} on Windows. A token is
 created at \url{https://www.kaggle.com/settings/api}.
 }
 \examples{
